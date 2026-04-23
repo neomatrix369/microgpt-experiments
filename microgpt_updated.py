@@ -156,6 +156,7 @@ def save_run_report(
     *,
     final_loss: float,
     samples: list[str],
+    loss_history: list[float],
 ) -> None:
     """Write hyperparameters, final training loss, and generated lines to a file."""
     head_dim = N_EMBD // N_HEAD
@@ -175,6 +176,7 @@ def save_run_report(
         input_path=INPUT_PATH,
         final_loss=final_loss,
         samples=samples,
+        loss_history=loss_history,
         experiment_suite_lines=_experiment_suite_lines(),
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -187,7 +189,7 @@ def train(
     docs: list[str],
     *,
     tok: Tokeniser,
-) -> tuple[StateDict, float]:
+) -> tuple[StateDict, float, list[float]]:
     """Train the GPT model on the dataset.
 
     Each step:
@@ -200,7 +202,8 @@ def train(
     The model's job is to predict each next token given the tokens before it.
 
     Returns:
-        Trained parameters and the loss value from the final optimisation step.
+        Trained parameters, the loss value from the final optimisation step,
+        and the per-step loss values (one float per training step, in order).
     """
     # The parameters ARE the knowledge of the model. Each is initialised to
     # a small random Gaussian and iteratively nudged during training. The
@@ -234,6 +237,7 @@ def train(
 
     # Repeat in sequence
     final_loss = float("nan")
+    loss_history: list[float] = []
     for step in range(NUM_STEPS):
         # Take a single document, tokenise it, surround with BOS on both sides
         doc = docs[step % len(docs)]
@@ -294,11 +298,20 @@ def train(
             p.grad = 0.0
 
         final_loss = loss.data
-        print(
-            f"Step {step + 1:4d} / {NUM_STEPS:4d} | Loss {loss.data:.4f}",
-            end="\r",
-        )
-    return state_dict, final_loss
+        loss_history.append(float(loss.data))
+        if step >= 100:
+            loss_avg_100 = sum(loss_history[-100:]) / 100
+            print(
+                f"Step {step + 1:4d} / {NUM_STEPS:4d} | Loss {loss.data:.4f} | "
+                f"Avg-100 {loss_avg_100:.4f}",
+                end="\r",
+            )
+        else:
+            print(
+                f"Step {step + 1:4d} / {NUM_STEPS:4d} | Loss {loss.data:.4f}",
+                end="\r",
+            )
+    return state_dict, final_loss, loss_history
 
 
 def generate(
@@ -361,7 +374,7 @@ def main() -> None:
     # Iterate over documents, nudging parameters to reduce prediction
     # error. After this, the statistical patterns of names are distilled
     # into the model's weights.
-    state_dict, final_loss = train(docs, tok=tok)
+    state_dict, final_loss, loss_history = train(docs, tok=tok)
 
     # Freeze parameters and sample new names by feeding each generated
     # token back as the next input.
@@ -371,7 +384,12 @@ def main() -> None:
         print(f"Sample {i:2d}: {name}")
 
     out_path = format_run_output_path()
-    save_run_report(out_path, final_loss=final_loss, samples=samples)
+    save_run_report(
+        out_path,
+        final_loss=final_loss,
+        samples=samples,
+        loss_history=loss_history,
+    )
     print(f"\nSaved run report to {out_path.resolve()}")
 
 

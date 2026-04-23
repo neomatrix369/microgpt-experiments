@@ -22,6 +22,7 @@ def build_run_report_lines(
     input_path: str,
     final_loss: float,
     samples: list[str],
+    loss_history: list[float] | None = None,
     experiment_suite_lines: list[str] | None = None,
 ) -> list[str]:
     """Assemble the full run report as lines (no trailing newline on last line — caller joins)."""
@@ -60,8 +61,13 @@ def build_run_report_lines(
         "",
         f"Final loss (last training step): {final_loss:.6f}",
         "",
-        "--- Inference samples ---",
     ]
+    if loss_history:
+        lines.append("--- Loss history (CSV: step,loss) ---")
+        for i, v in enumerate(loss_history):
+            lines.append(f"{i},{v:.6f}")
+        lines.append("")
+    lines.append("--- Inference samples ---")
     for i, name in enumerate(samples, start=1):
         lines.append(f"Sample {i:2d}: {name}")
     lines.append("")
