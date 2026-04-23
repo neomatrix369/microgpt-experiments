@@ -1,8 +1,9 @@
 """
 Train and run inference for a GPT in pure, dependency-free Python.
 
-The most atomic version of the algorithm. This file is it.
-Everything else is just efficiency.
+Entry script: hyperparameters, training loop, generation, and run-report wiring.
+The scalar autograd ``Value``, transformer forward, and data helpers live in
+``mgpt``; ``output_*.txt`` format and parsing live in ``run_report``.
 
 @karpathy
 https://karpathy.github.io/2026/02/12/microgpt/
@@ -10,19 +11,14 @@ https://karpathy.github.io/2026/02/12/microgpt/
 
 from __future__ import annotations
 
-import math
-import os
 import random
 from pathlib import Path
-from typing import Annotated, NamedTuple
 
-from run_report import (
-    NARRATIVE_SECTION_HEADER,
-    build_run_report_lines,
-    format_run_narrative_lines,
-    format_run_output_path_for_params,
-    run_parameter_glossary_lines,
-)
+from mgpt.data import build_tokeniser, load_dataset
+from mgpt.model import KVCache, StateDict, Tokeniser, gpt
+from mgpt.ops import Vector, make_matrix, softmax
+from mgpt.value import Value
+from run_report import build_run_report_lines, format_run_output_path_for_params
 
 # Hyperparameters
 # ====================
@@ -184,371 +180,8 @@ def save_run_report(
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-# Let there be Autograd: recursively apply the chain rule through a computation graph.
-# ------------
-# Training requires gradients: for each parameter, we need to know "if I nudge
-# this number up a little, does the loss go up or down, and by how much?". In
-# production, PyTorch handles this. Here we do it from scratch.
-class Value:
-    """Scalar node in an autograd computation graph.
-
-    Each Value wraps a single number and tracks how it was computed. Think of
-    each operation as a lego block: it takes some inputs, produces an output
-    (the forward pass), and knows how its output would change w.r.t. each
-    input (the local gradient). That is all autograd needs from each block.
-    Everything else is just the chain rule, stringing the blocks together.
-
-    This is the same algorithm that PyTorch's loss.backward() runs, just
-    on scalars instead of tensors: algorithmically identical, significantly
-    smaller and simpler, but of course a lot less efficient.
-
-    Attributes:
-        data: Scalar value of this node, computed during the forward pass.
-        grad: Derivative of the loss w.r.t. this node, computed in the backward pass.
-    """
-
-    # Memory optimisation: __slots__ avoids a per-instance __dict__
-    __slots__ = ("_children", "_local_grads", "data", "grad")
-
-    def __init__(
-        self,
-        data: float,
-        *,
-        children: tuple[Value, ...] = (),
-        local_grads: tuple[float, ...] = (),
-    ) -> None:
-        # Scalar value, calculated during the forward pass
-        self.data = data
-
-        # d(loss)/d(self), accumulated during the backward pass
-        self.grad = 0.0
-
-        # Children of this node in the computation graph
-        self._children = children
-
-        # d(self)/d(child) for each child (the local Jacobian entries)
-        self._local_grads = local_grads
-
-    def __repr__(self) -> str:
-        return f"Value(data={self.data}, grad={self.grad})"
-
-    def __add__(self, other: Value | float) -> Value:
-        other = other if isinstance(other, Value) else Value(other)
-        return Value(
-            self.data + other.data,
-            children=(self, other),
-            local_grads=(1.0, 1.0),
-        )
-
-    def __mul__(self, other: Value | float) -> Value:
-        other = other if isinstance(other, Value) else Value(other)
-        return Value(
-            self.data * other.data,
-            children=(self, other),
-            local_grads=(other.data, self.data),
-        )
-
-    def __pow__(self, other: float) -> Value:
-        return Value(
-            self.data**other,
-            children=(self,),
-            local_grads=(other * self.data ** (other - 1),),
-        )
-
-    def log(self) -> Value:
-        """Natural logarithm."""
-        return Value(
-            math.log(self.data),
-            children=(self,),
-            local_grads=(1.0 / self.data,),
-        )
-
-    def exp(self) -> Value:
-        """Natural exponential."""
-        ex = math.exp(self.data)
-        return Value(ex, children=(self,), local_grads=(ex,))
-
-    def relu(self) -> Value:
-        """Rectified linear unit."""
-        return Value(
-            max(0, self.data),
-            children=(self,),
-            local_grads=(float(self.data > 0),),
-        )
-
-    def __neg__(self) -> Value:
-        return self * -1
-
-    def __radd__(self, other: float) -> Value:
-        return self + other
-
-    def __sub__(self, other: Value | float) -> Value:
-        return self + (-other)
-
-    def __rsub__(self, other: float) -> Value:
-        return other + (-self)
-
-    def __rmul__(self, other: float) -> Value:
-        return self * other
-
-    def __truediv__(self, other: Value | float) -> Value:
-        return self * other**-1
-
-    def __rtruediv__(self, other: float) -> Value:
-        return other * self**-1
-
-    def backward(self) -> None:
-        """Backpropagate gradients through the computation graph.
-
-        Walks the graph in reverse topological order (from loss to
-        parameters), applying the chain rule at each step. The chain rule
-        is just multiplying rates of change along the path: "if a car
-        travels twice as fast as a bicycle and the bicycle is four times
-        as fast as a walking man, then the car travels 2 x 4 = 8 times as
-        fast as the man."
-        """
-        topo: list[Value] = []
-        visited: set[Value] = set()
-
-        def build_topo(node: Value) -> None:
-            if node not in visited:
-                visited.add(node)
-                for child in node._children:
-                    build_topo(child)
-                topo.append(node)
-
-        build_topo(self)
-
-        # dL/dL = 1: the loss's rate of change w.r.t. itself is trivially 1
-        self.grad = 1.0
-        for node in reversed(topo):
-            for child, local_grad in zip(
-                node._children, node._local_grads, strict=True
-            ):
-                # += not = : when a value is used in multiple places the graph
-                # branches, and gradients from each branch must be summed
-                # (multivariable chain rule)
-                child.grad += local_grad * node.grad
-
-
-# ==================================================================================
-# Define the model architecture: a function mapping tokens and parameters to logits
-# Follow GPT-2, blessed among the GPTs, with minor differences:
-#   layernorm -> rmsnorm, no biases, GeLU -> ReLU
-# ==================================================================================
-
-Vector = Annotated[list[Value], "An embedding or hidden state"]
-
-Matrix = Annotated[list[Vector], "A weight matrix (rows of vectors)"]
-
-KVCache = Annotated[list[list[Vector]], "A [layer][timestep] -> key or value vector"]
-
-StateDict = Annotated[dict[str, Matrix], "Model parameters keyed by name"]
-
-
-class Tokeniser(NamedTuple):
-    """Character-level tokeniser mapping chars to integer token ids."""
-
-    uchars: Annotated[list[str], "sorted unique characters (ids 0..n-1)"]
-    bos: Annotated[int, "Beginning of Sequence token id"]
-    vocab_size: Annotated[int, "Total unique tokens (len(uchars) + 1)"]
-
-
-def linear(x: Vector, *, w: Matrix) -> Vector:
-    """Matrix-vector multiply, the fundamental building block of neural networks.
-
-    Computes one dot product per row of w: a learned linear transformation.
-    """
-    return [
-        sum((wi * xi for wi, xi in zip(wo, x, strict=True)), Value(0.0)) for wo in w
-    ]
-
-
-def softmax(logits: Vector) -> Vector:
-    """Convert raw scores (logits) into a probability distribution.
-
-    All values end up in [0, 1] and sum to 1. Subtracting the max first
-    does not change the result mathematically but prevents overflow in exp.
-    """
-    max_val = max(val.data for val in logits)
-    exps = [(val - max_val).exp() for val in logits]
-    total = sum(exps, Value(0.0))
-    return [e / total for e in exps]
-
-
-def rmsnorm(x: Vector) -> Vector:
-    """Root mean square layer normalisation.
-
-    Rescales a vector so its values have unit root-mean-square. This keeps
-    activations from growing or shrinking as they flow through layers,
-    which stabilises training. Simpler variant of GPT-2's LayerNorm.
-    """
-    mean_sq = sum((xi * xi for xi in x), Value(0.0)) / len(x)
-    scale = (mean_sq + 1e-5) ** -0.5
-    return [xi * scale for xi in x]
-
-
-def make_matrix(nout: int, *, nin: int, std: float = 0.08) -> Matrix:
-    """Create a (nout x nin) matrix of randomly initialised Value nodes."""
-    return [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
-
-
-def gpt(
-    token_id: int,
-    *,
-    pos_id: int,
-    keys: KVCache,
-    values: KVCache,
-    state: StateDict,
-) -> Vector:
-    """Forward pass for a single token through the GPT model.
-
-    Processes one token at a time (no batch dimension, no parallel time
-    steps), building up the KV cache explicitly. Unlike the typical
-    inference setting where the KV cache holds detached tensors, here the
-    cached keys and values are live Value nodes in the computation graph,
-    so we actually backpropagate through them.
-    """
-    # The neural network cannot process a raw token id like 5 directly. It
-    # can only work with vectors. The token and position each look up a row
-    # from their embedding tables, then add together to encode both "what
-    # the token is" and "where it sits in the sequence".
-    tok_emb = state["wte"][token_id]
-
-    # Modern LLMs usually skip learned position embeddings in favour of
-    # relative schemes like RoPE, but absolute position embeddings are
-    # simpler and sufficient for short sequences.
-    pos_emb = state["wpe"][pos_id]
-
-    # Add the two vectors together, giving the model a representation that
-    # encodes both what the token is and where it is in the sequence.
-    x = [t + p for t, p in zip(tok_emb, pos_emb, strict=True)]
-
-    # Not redundant: residual connection needs normalised input for backward
-    x = rmsnorm(x)
-
-    for li in range(N_LAYER):
-        # 1) Multi-head Attention block
-        # The ONLY place where a token at position t gets to "look at"
-        # tokens in the past 0..t-1. Attention is a communication mechanism.
-        # Q = "what am I looking for?"
-        # K = "what do I contain?"
-        # V = "what do I offer if selected?"
-        # e.g. in "emma", when at the second "m" trying to predict what
-        # comes next, the query might encode "what vowels appeared
-        # recently?". The earlier "e" has a key that matches well, so its
-        # value (information about being a vowel) flows in.
-        x_residual = x
-        x = rmsnorm(x)
-        q = linear(x, w=state[f"layer{li}.attn_wq"])
-        k = linear(x, w=state[f"layer{li}.attn_wk"])
-        v = linear(x, w=state[f"layer{li}.attn_wv"])
-        keys[li].append(k)
-        values[li].append(v)
-        x_attn: Vector = []
-
-        for h in range(N_HEAD):
-            hs = h * HEAD_DIM
-            q_h = q[hs : hs + HEAD_DIM]
-            k_h = [ki[hs : hs + HEAD_DIM] for ki in keys[li]]
-            v_h = [vi[hs : hs + HEAD_DIM] for vi in values[li]]
-
-            # Dot products between query and all cached keys, scaled by
-            # sqrt(d_head) to keep variance stable
-            attn_logits = [
-                sum(
-                    (q_h[j] * k_h[t][j] for j in range(HEAD_DIM)),
-                    Value(0.0),
-                )
-                / HEAD_DIM**0.5
-                for t in range(len(k_h))
-            ]
-            attn_weights = softmax(attn_logits)
-
-            # Weighted sum of cached values
-            head_out = [
-                sum(
-                    (attn_weights[t] * v_h[t][j] for t in range(len(v_h))),
-                    Value(0.0),
-                )
-                for j in range(HEAD_DIM)
-            ]
-            x_attn.extend(head_out)
-
-        # Concatenated head outputs are projected through attn_wo
-        x = linear(x_attn, w=state[f"layer{li}.attn_wo"])
-
-        # Residual: lets gradients flow directly through, making deeper
-        # models trainable
-        x = [a + b for a, b in zip(x, x_residual, strict=True)]
-
-        # 2) MLP block (two-layer feed-forward network)
-        # Project up to 4x the embedding dimension, apply ReLU, project
-        # back down. This is where the model does most of its "thinking"
-        # per position. Unlike attention, fully local to time t. The
-        # Transformer intersperses communication (Attention) with
-        # computation (MLP).
-        x_residual = x
-        x = rmsnorm(x)
-        x = linear(x, w=state[f"layer{li}.mlp_fc1"])
-        x = [xi.relu() for xi in x]
-        x = linear(x, w=state[f"layer{li}.mlp_fc2"])
-        x = [a + b for a, b in zip(x, x_residual, strict=True)]
-
-    # Project to vocab_size logits: one score per possible next token
-    # (in our case, just 27 numbers). Higher logit = more likely next.
-    return linear(x, w=state["lm_head"])
-
-
-def load_dataset() -> list[str]:
-    """Let there be a Dataset: list[str] of documents (e.g. a list of names).
-
-    In production each document would be an internet web page. Here we use
-    32,000 names, one per line. The goal is to learn the patterns and then
-    generate similar new documents. From ChatGPT's perspective, your
-    conversation is just a funny looking "document" and its response is
-    just a statistical completion.
-    """
-    if not os.path.exists(INPUT_PATH):
-        import urllib.request
-
-        urllib.request.urlretrieve(NAMES_URL, INPUT_PATH)
-
-    with open(INPUT_PATH) as f:
-        docs = [line.strip() for line in f if line.strip()]
-
-    random.shuffle(docs)
-    print(f"Num Docs: {len(docs)}")
-    return docs
-
-
-def build_tokeniser(docs: list[str]) -> Tokeniser:
-    """Let there be a Tokeniser: strings to sequences of integer tokens and back.
-
-    Neural networks work with numbers, not characters, so we assign one
-    integer to each unique character. The integer values have no meaning;
-    each token is just a separate discrete symbol. Production tokenisers
-    like tiktoken (GPT-4) operate on chunks of characters for efficiency,
-    but character-level is the simplest possible scheme.
-
-    Returns:
-        uchars: Sorted unique characters (token ids 0..n-1).
-        bos: Beginning of Sequence token id.
-        vocab_size: Total number of unique tokens.
-    """
-    # unique chars become token ids 0..n-1
-    uchars = sorted(set("".join(docs)))
-
-    # BOS acts as a delimiter: "a new document starts/ends here". During
-    # training each name is wrapped: [BOS, e, m, m, a, BOS]. The model
-    # learns that BOS initiates a new name and another BOS ends it.
-    bos = len(uchars)
-
-    # 26 lowercase a-z + 1 BOS = 27
-    vocab_size = len(uchars) + 1
-    print(f"Vocab Size: {vocab_size}")
-    return Tokeniser(uchars, bos, vocab_size)
-
+# Model forward, autograd, data, and tokeniser live in ``mgpt``; this file keeps
+# hyperparameters, the training loop, generation, and run-report wiring.
 
 def train(
     docs: list[str],
@@ -619,6 +252,9 @@ def train(
                 keys=kv_keys,
                 values=kv_values,
                 state=state_dict,
+                n_layer=N_LAYER,
+                n_head=N_HEAD,
+                head_dim=HEAD_DIM,
             )
             probs = softmax(logits)
 
@@ -693,6 +329,9 @@ def generate(
                 keys=kv_keys,
                 values=kv_values,
                 state=state,
+                n_layer=N_LAYER,
+                n_head=N_HEAD,
+                head_dim=HEAD_DIM,
             )
             # Dividing logits by temperature before softmax controls
             # randomness. T=1.0 uses the learned distribution directly.
@@ -714,7 +353,7 @@ def main() -> None:
     random.seed(SEED)
 
     # 32k names, one per line. Each name is a "document".
-    docs = load_dataset()
+    docs = load_dataset(input_path=INPUT_PATH, names_url=NAMES_URL)
 
     # Map characters to integer token ids (a=0 .. z=25, BOS=26).
     tok = build_tokeniser(docs)

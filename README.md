@@ -58,7 +58,9 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 
 | Path | Role |
 |------|------|
-| **`microgpt_updated.py`** | Refactored version: type hints, `Tokeniser`, `StateDict`, `KVCache`, `train()` / `generate()` / `main()`, `save_run_report()`. **Prefer this for new features, tests, or structural changes.** |
+| **`microgpt_updated.py`** | Refactored **entry**: hyperparameters, `train()` / `generate()` / `main()`, `save_run_report()`. Imports **`mgpt/`** (model + autograd + data) and **`run_report/`** (report text format). **Prefer this for new features, tests, or structural changes.** |
+| **`mgpt/`** | Package: `Value`, tensor ops, transformer step `gpt()`, `load_dataset` / `build_tokeniser`. Stdlib only. |
+| **`run_report/`** | Package: parsing saved reports, narrative text, output filename encoding, assembling a full report file. Used by the entry script and the two report utilities below. |
 | **`microgpt.py`** | Compact version: one continuous script with module-level state; closest to a “single-file walkthrough.” |
 | **`annotate_run_reports.py`** | Utility script: inserts the `--- What this run is ---` narrative into **existing** `output_*.txt` files (so older runs match the current report format). |
 | **`compare_run_reports.py`** | Utility script: compares two saved run reports (parsed config, final loss, ordered inference samples). Exit code `0` if all match, `1` if something differs, `2` on usage or parse errors. |
@@ -123,7 +125,7 @@ flowchart TB
 
 The refactored script saves a text summary of a training run: a short **narrative** section (`--- What this run is ---`) that explains the input file, the training setup, and how to read the final loss and generated samples; an optional **experiment suite** block for variant sweeps; a flat **config** listing; the last-step **loss**; **inference samples**; and a **parameter glossary** (including how the output filename is encoded).
 
-- **Default path:** built from hyperparameters, e.g. `output_L1_E16_H4_D4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The stem encodes `L/E/H/D/B/S/T/seed` plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built, so repeat runs with the same hyperparameters do not overwrite earlier reports. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py`.
+- **Default path:** built from hyperparameters, e.g. `output_L1_E16_H4_D4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The stem encodes `L/E/H/D/B/S/T/seed` plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built, so repeat runs with the same hyperparameters do not overwrite earlier reports. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py` (wrapper) and `format_run_output_path_for_params()` in `run_report/paths.py`.
 - **Past reports:** to add or refresh the narrative on files saved before the narrative existed, run from the repo root:
 
   ```bash
@@ -187,8 +189,8 @@ Same roles under lowercase names: `n_layer`, `n_embd`, `block_size`, `n_head`, `
 ## Developing further
 
 - **Dependency policy**: Keep the project **stdlib-only** unless maintainers explicitly add third-party packages.
-- **Where to edit**: Use **`microgpt_updated.py`** for anything that benefits from functions, types, or tests; keep **`microgpt.py`** aligned with the “one file narrative” when possible.
-- **Run report text**: The human-readable story in `--- What this run is ---` lives in `format_run_narrative_lines()`; `annotate_run_reports.py` reuses it so backfilled files match new runs.
+- **Where to edit**: Use **`microgpt_updated.py`** for the training/generation orchestration and **`mgpt/`** for model or autograd internals; keep **`microgpt.py`** aligned with the “one file narrative” when possible. Report layout and parsing live in **`run_report/`**.
+- **Run report text**: The human-readable story in `--- What this run is ---` is implemented in **`run_report/narrative.py`** (`format_run_narrative_lines`); `annotate_run_reports.py` imports it so backfilled files match new runs.
 - **Comparing reports**: After two runs, `python compare_run_reports.py output_….txt output_….txt` summarizes config / loss / sample diffs (see [Comparing two reports](#comparing-two-reports)).
 - **Educational comments**: The refactored file includes explanatory comments; avoid stripping them without an explicit request.
 - **KV cache and training**: During training, cached keys/values are part of the live graph for that forward (they are not treated as detached inference-only tensors). Understand this before changing caching behavior.
