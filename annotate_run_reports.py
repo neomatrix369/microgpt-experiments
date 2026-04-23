@@ -11,76 +11,15 @@ Stdlib only; run from the repo root::
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
-# Same module as training — narrative text stays single-sourced.
-from microgpt_updated import NARRATIVE_SECTION_HEADER, format_run_narrative_lines
-
-_CFG_INT = {
-    "N_LAYER",
-    "N_EMBD",
-    "N_HEAD",
-    "HEAD_DIM",
-    "BLOCK_SIZE",
-    "NUM_STEPS",
-    "SEED",
-}
-_CFG_FLOAT = {"TEMPERATURE", "LEARNING_RATE", "BETA1", "BETA2"}
-
-
-def _parse_report(text: str) -> dict[str, int | float | str] | None:
-    """Best-effort parse of a saved run report; returns None if too incomplete."""
-    cfg: dict[str, int | float | str] = {}
-    for line in text.splitlines():
-        if not line or line.startswith("---"):
-            continue
-        if "=" not in line:
-            continue
-        key, _, rest = line.partition("=")
-        key = key.strip()
-        if key not in _CFG_INT and key not in _CFG_FLOAT and key != "INPUT_PATH":
-            continue
-        val_s = rest.strip()
-        if key in _CFG_INT:
-            try:
-                cfg[key] = int(val_s)
-            except ValueError:
-                pass
-        elif key in _CFG_FLOAT:
-            try:
-                cfg[key] = float(val_s)
-            except ValueError:
-                pass
-        else:
-            cfg[key] = val_s
-    m_loss = re.search(
-        r"^Final loss \(last training step\): ([0-9.eE+-]+)\s*$",
-        text,
-        re.MULTILINE,
-    )
-    if not m_loss:
-        return None
-    cfg["_final_loss"] = float(m_loss.group(1))
-    cfg["_num_samples"] = len(
-        re.findall(r"^Sample\s+\d+:", text, re.MULTILINE)
-    )
-    need = {
-        "N_LAYER",
-        "N_EMBD",
-        "N_HEAD",
-        "HEAD_DIM",
-        "BLOCK_SIZE",
-        "NUM_STEPS",
-        "TEMPERATURE",
-        "SEED",
-        "INPUT_PATH",
-    }
-    for k in need:
-        if k not in cfg:
-            return None
-    return cfg
+from run_report import (
+    NARRATIVE_SECTION_HEADER,
+    NARRATIVE_REQUIRED_CONFIG_KEYS,
+    format_run_narrative_lines,
+    parse_run_report_text,
+)
 
 
 def annotate_file(path: Path) -> str:
@@ -91,9 +30,17 @@ def annotate_file(path: Path) -> str:
         return f"err: {e}"
     if NARRATIVE_SECTION_HEADER in text:
         return "skip (narrative already present)"
-    cfg = _parse_report(text)
-    if cfg is None:
+    try:
+        p = parse_run_report_text(text)
+    except ValueError:
         return "err: could not parse config / loss (unexpected format)"
+    cfg = p.config
+    for k in NARRATIVE_REQUIRED_CONFIG_KEYS:
+        if k not in cfg:
+            return "err: could not parse config / loss (unexpected format)"
+    if len(p.samples) < 1:
+        return "err: no Sample N: lines found"
+
     n_layer = int(cfg["N_LAYER"])
     n_embd = int(cfg["N_EMBD"])
     n_head = int(cfg["N_HEAD"])
@@ -103,10 +50,8 @@ def annotate_file(path: Path) -> str:
     temperature = float(cfg["TEMPERATURE"])
     seed = int(cfg["SEED"])
     input_path = str(cfg["INPUT_PATH"])
-    final_loss = float(cfg["_final_loss"])
-    num_samples = int(cfg["_num_samples"])
-    if num_samples < 1:
-        return "err: no Sample N: lines found"
+    final_loss = p.final_loss
+    num_samples = len(p.samples)
 
     sep = "==================="
     i = text.find(sep)

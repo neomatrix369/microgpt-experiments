@@ -19,94 +19,25 @@ are not compared. See ``README.md`` (section *Comparing two reports*) for contex
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
-_CFG_INT = frozenset(
-    {"N_LAYER", "N_EMBD", "N_HEAD", "HEAD_DIM", "BLOCK_SIZE", "NUM_STEPS", "SEED"}
+from run_report import (
+    cfg_keys_in_display_order,
+    parse_run_report_text,
 )
-_CFG_FLOAT = frozenset(
-    {"TEMPERATURE", "LEARNING_RATE", "BETA1", "BETA2", "EPS_ADAM"}
-)
-_CFG_STR = frozenset({"INPUT_PATH"})
-
-# Order used when printing a single shared config (both runs agree).
-_CFG_DISPLAY_ORDER: tuple[str, ...] = (
-    "N_LAYER",
-    "N_EMBD",
-    "N_HEAD",
-    "HEAD_DIM",
-    "BLOCK_SIZE",
-    "NUM_STEPS",
-    "TEMPERATURE",
-    "SEED",
-    "LEARNING_RATE",
-    "BETA1",
-    "BETA2",
-    "EPS_ADAM",
-    "INPUT_PATH",
-)
-
-
-def _cfg_keys_in_display_order(keys: set[str]) -> list[str]:
-    ordered = [k for k in _CFG_DISPLAY_ORDER if k in keys]
-    rest = sorted(k for k in keys if k not in _CFG_DISPLAY_ORDER)
-    return ordered + rest
-
-
-def parse_run_report(text: str) -> tuple[dict[str, int | float | str], float, list[str]]:
-    cfg: dict[str, int | float | str] = {}
-    for line in text.splitlines():
-        if not line or line.startswith("---"):
-            continue
-        if "=" not in line:
-            continue
-        key, _, rest = line.partition("=")
-        key = key.strip()
-        if key in _CFG_INT:
-            try:
-                cfg[key] = int(rest.strip())
-            except ValueError:
-                pass
-        elif key in _CFG_FLOAT:
-            try:
-                cfg[key] = float(rest.strip())
-            except ValueError:
-                pass
-        elif key in _CFG_STR:
-            cfg[key] = rest.strip()
-
-    m_loss = re.search(
-        r"^Final loss \(last training step\): ([0-9.eE+-]+)\s*$",
-        text,
-        re.MULTILINE,
-    )
-    if not m_loss:
-        raise ValueError("missing final loss line")
-    final_loss = float(m_loss.group(1))
-
-    samples: list[str] = []
-    in_samples = False
-    sample_re = re.compile(r"^Sample\s+\d+:\s*(.*)$")
-    for line in text.splitlines():
-        if line.strip() == "--- Inference samples ---":
-            in_samples = True
-            continue
-        if in_samples:
-            if line.startswith("---"):
-                break
-            m = sample_re.match(line.rstrip())
-            if m:
-                samples.append(m.group(1))
-
-    return cfg, final_loss, samples
 
 
 def _fmt_val(v: object) -> str:
     if isinstance(v, float):
         return f"{v:g}"
     return str(v)
+
+
+def parse_run_report(text: str) -> tuple[dict[str, int | float | str], float, list[str]]:
+    """Parse a run report; kept for importers. Prefer :func:`parse_run_report_text`."""
+    p = parse_run_report_text(text)
+    return p.config, p.final_loss, p.samples
 
 
 def compare_reports(path_a: Path, path_b: Path) -> int:
@@ -123,7 +54,9 @@ def compare_reports(path_a: Path, path_b: Path) -> int:
         va, vb = cfg_a.get(k), cfg_b.get(k)
         if va != vb:
             exit_code = 1
-            config_diff.append((k, _fmt_val(va) if va is not None else "—", _fmt_val(vb) if vb is not None else "—"))
+            config_diff.append(
+                (k, _fmt_val(va) if va is not None else "—", _fmt_val(vb) if vb is not None else "—")
+            )
         else:
             shared_keys.add(k)
 
@@ -134,7 +67,7 @@ def compare_reports(path_a: Path, path_b: Path) -> int:
     if config_diff:
         if shared_keys:
             print("--- Shared config (both runs) ---")
-            for k in _cfg_keys_in_display_order(shared_keys):
+            for k in cfg_keys_in_display_order(shared_keys):
                 print(f"  {k}={_fmt_val(cfg_a[k])}")
             print()
         print("--- Config differences ---")
@@ -147,7 +80,7 @@ def compare_reports(path_a: Path, path_b: Path) -> int:
         print()
     else:
         print("--- Config (same both runs) ---")
-        display_keys = _cfg_keys_in_display_order(set(cfg_a))
+        display_keys = cfg_keys_in_display_order(set(cfg_a))
         for k in display_keys:
             print(f"  {k}={_fmt_val(cfg_a[k])}")
         print()

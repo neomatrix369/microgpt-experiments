@@ -13,9 +13,16 @@ from __future__ import annotations
 import math
 import os
 import random
-from datetime import datetime
 from pathlib import Path
 from typing import Annotated, NamedTuple
+
+from run_report import (
+    NARRATIVE_SECTION_HEADER,
+    build_run_report_lines,
+    format_run_narrative_lines,
+    format_run_output_path_for_params,
+    run_parameter_glossary_lines,
+)
 
 # Hyperparameters
 # ====================
@@ -24,20 +31,24 @@ from typing import Annotated, NamedTuple
 # character-level name generation; deeper nets help for harder tasks but
 # cost linearly more here because our scalar autograd is O(nodes) per
 # backward pass and each layer adds a fixed number of nodes.
+# tunable parameter
 N_LAYER = 1
 
 # Width of the network (embedding dimension). Each token and position is
 # represented as a vector of this length. 16 is tiny but trains fast in
 # pure Python and is enough to learn spelling patterns in short names.
+# tunable parameter
 N_EMBD = 16
 
 # Maximum context length of the attention window. The longest name in the
 # dataset is 15 characters, so 16 covers every example with room for BOS.
+# tunable parameter (fixed for this dataset)
 BLOCK_SIZE = 16
 
 # Number of attention heads. Multi-head attention lets the model attend to
 # different positional relationships in parallel. 4 heads of dimension 4
 # (16 / 4) is a reasonable split for this embedding size.
+# tunable parameter (fixed by the embedding size and number of heads)
 N_HEAD = 4
 
 # Derived dimension of each attention head.
@@ -88,35 +99,6 @@ EXPERIMENT_SUITE_TOTAL: int | None = None
 EXPERIMENT_SUITE_NOTE: str | None = None
 
 
-def run_parameter_glossary_lines() -> list[str]:
-    """Human-readable meanings for report fields and output filename tokens."""
-    return [
-        "--- Parameter glossary ---",
-        "Architecture / data:",
-        "  N_LAYER   — Transformer depth (stacked attention+MLP blocks).",
-        "  N_EMBD    — Hidden width; each token position is a vector this long.",
-        "  N_HEAD    — Attention heads; splits N_EMBD into parallel subspaces.",
-        "  HEAD_DIM  — N_EMBD // N_HEAD; per-head key/query/value width (must divide evenly).",
-        "  BLOCK_SIZE — Max context length (positions 0..BLOCK_SIZE-1); must fit longest line + BOS.",
-        "Training / optimisation:",
-        "  NUM_STEPS — One training step = one document forward-backward + Adam update.",
-        "  LEARNING_RATE — Base Adam step size (scaled by linear decay to 0 over the run).",
-        "  BETA1, BETA2 — Adam momentum and variance decay.",
-        "  EPS_ADAM — Numerical stability in Adam denominator.",
-        "  SEED — RNG seed (init + shuffling + sampling) for reproducibility.",
-        "Inference:",
-        "  TEMPERATURE — Logits divided by this before softmax; lower = sharper samples.",
-        "Data:",
-        "  INPUT_PATH — Training text file (one document per line; BOS wraps each line).",
-        "",
-        "Filename tokens (output_L…_E…_H…_D…_B…_S…_T…_seed…_YYYYMMDD_HHMMSS.txt):",
-        "  L = N_LAYER, E = N_EMBD, H = N_HEAD, D = HEAD_DIM, B = BLOCK_SIZE,",
-        "  S = NUM_STEPS, T = TEMPERATURE (decimal point written as 'p', e.g. 0p5).",
-        "  YYYYMMDD_HHMMSS = local wall-clock time when the report path is built.",
-        "",
-    ]
-
-
 def _experiment_suite_lines() -> list[str]:
     if (
         EXPERIMENT_SUITE_INDEX is None
@@ -148,54 +130,6 @@ def _experiment_suite_lines() -> list[str]:
     return lines
 
 
-NARRATIVE_SECTION_HEADER = "--- What this run is ---"
-
-
-def format_run_narrative_lines(
-    *,
-    n_layer: int,
-    n_embd: int,
-    n_head: int,
-    head_dim: int,
-    block_size: int,
-    num_steps: int,
-    temperature: float,
-    seed: int,
-    input_path: str,
-    final_loss: float,
-    num_samples: int,
-) -> list[str]:
-    """Short human-readable story of inputs, training, and report outputs.
-
-    Kept in one place so :func:`save_run_report` and
-    ``annotate_run_reports.py`` stay aligned for past and future runs.
-    """
-    in_name = Path(input_path).name if input_path else "(unknown file)"
-    return [
-        NARRATIVE_SECTION_HEADER,
-        "",
-        "Input: Training text is read from a plain-text file, one short document per "
-        f"line (here: `{in_name}`). Characters become vocabulary tokens, plus a "
-        "special beginning-of-sequence (BOS) token so the model learns where a line "
-        "starts and when to stop. Context length is at most "
-        f"{block_size} token positions (including BOS).",
-        "",
-        "Training: A small decoder-only transformer predicts the next character at "
-        "each position (cross-entropy). This run uses "
-        f"{n_layer} layer(s), width {n_embd}, {n_head} attention head(s) with "
-        f"head width {head_dim}, trained for {num_steps} optimizer steps. "
-        f"Init and sampling use seed {seed}; Adam with linear learning-rate decay is "
-        "used during training (see config block below).",
-        "",
-        f"Output: The last-step training loss is {final_loss:.6f} (log-probability of "
-        "the held-in-graph targets; lower is better on this training objective). "
-        f"Below, {num_samples} lines are *generated* strings sampled from the learned "
-        f"distribution (temperature {temperature}): they are not copies from the file; "
-        "they show what the model has generalized.",
-        "",
-    ]
-
-
 def format_run_output_path(
     *,
     prefix: str = "output",
@@ -207,14 +141,18 @@ def format_run_output_path(
     (temperature dots become ``p`` so the stem stays a single clear token;
     trailing ``YYYYMMDD_HHMMSS`` is local wall-clock time for this run).
     """
-    t_token = f"{TEMPERATURE:g}".replace("-", "m").replace(".", "p")
-    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    head_dim = N_EMBD // N_HEAD
-    stem = (
-        f"{prefix}_L{N_LAYER}_E{N_EMBD}_H{N_HEAD}_D{head_dim}_B{BLOCK_SIZE}"
-        f"_S{NUM_STEPS}_T{t_token}_seed{SEED}_{run_ts}"
+    return format_run_output_path_for_params(
+        n_layer=N_LAYER,
+        n_embd=N_EMBD,
+        n_head=N_HEAD,
+        head_dim=N_EMBD // N_HEAD,
+        block_size=BLOCK_SIZE,
+        num_steps=NUM_STEPS,
+        temperature=TEMPERATURE,
+        seed=SEED,
+        prefix=prefix,
+        directory=directory,
     )
-    return Path(directory) / f"{stem}.txt"
 
 
 def save_run_report(
@@ -225,46 +163,24 @@ def save_run_report(
 ) -> None:
     """Write hyperparameters, final training loss, and generated lines to a file."""
     head_dim = N_EMBD // N_HEAD
-    lines = [
-        "microGPT run report",
-        "===================",
-        *format_run_narrative_lines(
-            n_layer=N_LAYER,
-            n_embd=N_EMBD,
-            n_head=N_HEAD,
-            head_dim=head_dim,
-            block_size=BLOCK_SIZE,
-            num_steps=NUM_STEPS,
-            temperature=TEMPERATURE,
-            seed=SEED,
-            input_path=INPUT_PATH,
-            final_loss=final_loss,
-            num_samples=len(samples),
-        ),
-        *_experiment_suite_lines(),
-        "--- Config (this run) ---",
-        f"N_LAYER={N_LAYER}",
-        f"N_EMBD={N_EMBD}",
-        f"N_HEAD={N_HEAD}",
-        f"HEAD_DIM={head_dim}",
-        f"BLOCK_SIZE={BLOCK_SIZE}",
-        f"NUM_STEPS={NUM_STEPS}",
-        f"TEMPERATURE={TEMPERATURE}",
-        f"SEED={SEED}",
-        f"LEARNING_RATE={LEARNING_RATE}",
-        f"BETA1={BETA1}",
-        f"BETA2={BETA2}",
-        f"EPS_ADAM={EPS_ADAM}",
-        f"INPUT_PATH={INPUT_PATH}",
-        "",
-        f"Final loss (last training step): {final_loss:.6f}",
-        "",
-        "--- Inference samples ---",
-    ]
-    for i, name in enumerate(samples, start=1):
-        lines.append(f"Sample {i:2d}: {name}")
-    lines.append("")
-    lines.extend(run_parameter_glossary_lines())
+    lines = build_run_report_lines(
+        n_layer=N_LAYER,
+        n_embd=N_EMBD,
+        n_head=N_HEAD,
+        head_dim=head_dim,
+        block_size=BLOCK_SIZE,
+        num_steps=NUM_STEPS,
+        temperature=TEMPERATURE,
+        seed=SEED,
+        learning_rate=LEARNING_RATE,
+        beta1=BETA1,
+        beta2=BETA2,
+        eps_adam=EPS_ADAM,
+        input_path=INPUT_PATH,
+        final_loss=final_loss,
+        samples=samples,
+        experiment_suite_lines=_experiment_suite_lines(),
+    )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
