@@ -8,9 +8,14 @@ Smallest useful diff:
   - Final loss — one training outcome scalar
   - Inference samples — ordered lines (what you actually read)
 
+If both reports include ``--- Loss history ---``, **text graphs** are printed:
+multi-row grids with per-bin min–mean–max bands, shared loss scale for A and B,
+a Δ chart, and RMSE / mean |Δ| over binned means (default 72 bins × 12 rows).
+
 Usage::
 
     python compare_run_reports.py output_A.txt output_B.txt
+    python compare_run_reports.py output_A.txt output_B.txt --loss-bins 96 --loss-height 14
 
 Exit codes: ``0`` if config, loss, and samples all match; ``1`` if any differ;
 ``2`` for bad arguments or an unreadable report. Narrative and glossary sections
@@ -24,6 +29,7 @@ from pathlib import Path
 
 from run_report import (
     cfg_keys_in_display_order,
+    loss_curve_comparison_lines,
     parse_run_report_text,
 )
 
@@ -34,17 +40,19 @@ def _fmt_val(v: object) -> str:
     return str(v)
 
 
-def parse_run_report(text: str) -> tuple[dict[str, int | float | str], float, list[str]]:
+def parse_run_report(
+    text: str,
+) -> tuple[dict[str, int | float | str], float, list[str], list[float] | None]:
     """Parse a run report; kept for importers. Prefer :func:`parse_run_report_text`."""
     p = parse_run_report_text(text)
-    return p.config, p.final_loss, p.samples
+    return p.config, p.final_loss, p.samples, p.loss_history
 
 
-def compare_reports(path_a: Path, path_b: Path) -> int:
+def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: int) -> int:
     text_a = path_a.read_text(encoding="utf-8")
     text_b = path_b.read_text(encoding="utf-8")
-    cfg_a, loss_a, samp_a = parse_run_report(text_a)
-    cfg_b, loss_b, samp_b = parse_run_report(text_b)
+    cfg_a, loss_a, samp_a, hist_a = parse_run_report(text_a)
+    cfg_b, loss_b, samp_b, hist_b = parse_run_report(text_b)
 
     exit_code = 0
     keys = sorted(set(cfg_a) | set(cfg_b))
@@ -94,6 +102,25 @@ def compare_reports(path_a: Path, path_b: Path) -> int:
     else:
         print(f"--- Final loss: {loss_a:.6f} (same) ---\n")
 
+    if hist_a is not None and hist_b is not None:
+        print(
+            *loss_curve_comparison_lines(
+                label_a="A",
+                label_b="B",
+                losses_a=hist_a,
+                losses_b=hist_b,
+                width=loss_bins,
+                grid_height=loss_height,
+            ),
+            sep="\n",
+        )
+        print()
+    elif hist_a is not None or hist_b is not None:
+        which = path_a.name if hist_a is not None else path_b.name
+        print("--- Loss history (text graph) ---")
+        print(f"  skipped: only one run has loss history (see {which})")
+        print()
+
     if samp_a != samp_b:
         exit_code = 1
         print("--- Inference samples ---")
@@ -117,15 +144,40 @@ def compare_reports(path_a: Path, path_b: Path) -> int:
 
 
 def main() -> None:
-    if len(sys.argv) != 3:
+    args = sys.argv[1:]
+    loss_bins = 72
+    loss_height = 12
+    if "--loss-bins" in args:
+        i = args.index("--loss-bins")
+        try:
+            loss_bins = int(args[i + 1])
+        except (IndexError, ValueError):
+            print("Usage: ... --loss-bins N  (N positive integer)", file=sys.stderr)
+            sys.exit(2)
+        del args[i : i + 2]
+    if "--loss-height" in args:
+        i = args.index("--loss-height")
+        try:
+            loss_height = int(args[i + 1])
+        except (IndexError, ValueError):
+            print("Usage: ... --loss-height N  (N integer >= 3)", file=sys.stderr)
+            sys.exit(2)
+        del args[i : i + 2]
+    if loss_bins < 1:
+        print("--loss-bins must be at least 1", file=sys.stderr)
+        sys.exit(2)
+    if loss_height < 3:
+        print("--loss-height must be at least 3", file=sys.stderr)
+        sys.exit(2)
+    if len(args) != 2:
         print(__doc__.strip(), file=sys.stderr)
         sys.exit(2)
-    a, b = Path(sys.argv[1]), Path(sys.argv[2])
+    a, b = Path(args[0]), Path(args[1])
     if not a.is_file() or not b.is_file():
         print("Both arguments must be existing files.", file=sys.stderr)
         sys.exit(2)
     try:
-        code = compare_reports(a, b)
+        code = compare_reports(a, b, loss_bins=loss_bins, loss_height=loss_height)
     except ValueError as e:
         print(f"Parse error: {e}", file=sys.stderr)
         sys.exit(2)

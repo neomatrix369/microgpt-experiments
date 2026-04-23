@@ -36,6 +36,7 @@ class ParsedRunReport:
     config: dict[str, int | float | str]
     final_loss: float
     samples: list[str]
+    loss_history: list[float] | None
 
 
 def cfg_keys_in_display_order(keys: set[str]) -> list[str]:
@@ -46,6 +47,10 @@ def cfg_keys_in_display_order(keys: set[str]) -> list[str]:
 
 def parse_run_report_text(text: str) -> ParsedRunReport:
     """Parse a saved run report: config key=value lines, final loss, inference samples."""
+    loss_history: list[float] | None = None
+    in_loss = False
+    loss_vals: list[float] = []
+
     cfg: dict[str, int | float | str] = {}
     for line in text.splitlines():
         if not line or line.startswith("---"):
@@ -66,6 +71,30 @@ def parse_run_report_text(text: str) -> ParsedRunReport:
                 pass
         elif key in _CFG_STR:
             cfg[key] = rest.strip()
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "--- Loss history (CSV: step,loss) ---":
+            in_loss = True
+            loss_vals = []
+            continue
+        if in_loss:
+            if line.startswith("---"):
+                loss_history = loss_vals if loss_vals else None
+                in_loss = False
+                continue
+            if not stripped:
+                continue
+            if "," in stripped:
+                _, _, loss_s = stripped.partition(",")
+                try:
+                    loss_vals.append(float(loss_s.strip()))
+                except ValueError:
+                    pass
+            continue
+
+    if in_loss and loss_vals:
+        loss_history = loss_vals
 
     m_loss = re.search(
         r"^Final loss \(last training step\): ([0-9.eE+-]+)\s*$",
@@ -90,4 +119,6 @@ def parse_run_report_text(text: str) -> ParsedRunReport:
             if m:
                 samples.append(m.group(1))
 
-    return ParsedRunReport(config=cfg, final_loss=final_loss, samples=samples)
+    return ParsedRunReport(
+        config=cfg, final_loss=final_loss, samples=samples, loss_history=loss_history
+    )
