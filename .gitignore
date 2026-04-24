@@ -27,8 +27,10 @@ ENV/
 .idea/
 .vscode/
 
-# Training run artifacts (regenerate with: python microgpt_updated.py)
+# Training run artifacts (regenerate with: python microgpt_updated.py [optional CLI flags])
 output_*.txt
 
 # Dataset (scripts download names.txt from makemore when missing)
 input.txt
+
+*.htm*

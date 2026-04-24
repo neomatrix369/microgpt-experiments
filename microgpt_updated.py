@@ -5,13 +5,19 @@ Entry script: hyperparameters, training loop, generation, and run-report wiring.
 The scalar autograd ``Value``, transformer forward, and data helpers live in
 ``mgpt``; ``output_*.txt`` format and parsing live in ``run_report``.
 
+Hyperparameters: edit module-level constants and/or pass CLI flags (see
+``python microgpt_updated.py --help``). User-facing overview: ``README.md`` (sections *How to use microgpt_updated.py*
+and *Run experiments examples*).
+
 @karpathy
 https://karpathy.github.io/2026/02/12/microgpt/
 """
 
 from __future__ import annotations
 
+import argparse
 import random
+import sys
 from pathlib import Path
 
 from mgpt.data import build_tokeniser, load_dataset
@@ -97,6 +103,90 @@ EXPERIMENT_SUITE_INDEX: int | None = None
 EXPERIMENT_SUITE_TOTAL: int | None = None
 # Optional one-line context for a sweep (printed under ``--- Experiment suite ---``).
 EXPERIMENT_SUITE_NOTE: str | None = None
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """CLI overrides for hyperparameters; omitted flags keep module defaults."""
+    p = argparse.ArgumentParser(
+        description=(
+            "Train the tiny GPT, print samples and quality metrics, "
+            "and save output_*.txt (same as running with no arguments "
+            "using the constants at the top of this file)."
+        )
+    )
+    g = p.add_argument_group("hyperparameters (defaults match this file)")
+    g.add_argument("--n-layer", type=int, default=N_LAYER, metavar="N")
+    g.add_argument("--n-embd", type=int, default=N_EMBD, metavar="N")
+    g.add_argument("--n-head", type=int, default=N_HEAD, metavar="N")
+    g.add_argument("--block-size", type=int, default=BLOCK_SIZE, metavar="N")
+    g.add_argument("--num-steps", type=int, default=NUM_STEPS, metavar="N")
+    g.add_argument("--temperature", type=float, default=TEMPERATURE, metavar="T")
+    g.add_argument("--seed", type=int, default=SEED, metavar="N")
+    g.add_argument("--learning-rate", type=float, default=LEARNING_RATE, metavar="LR")
+    g.add_argument("--beta1", type=float, default=BETA1)
+    g.add_argument("--beta2", type=float, default=BETA2)
+    g.add_argument(
+        "--input",
+        default=INPUT_PATH,
+        metavar="PATH",
+        help="Training text file (one document per line); default from INPUT_PATH.",
+    )
+    s = p.add_argument_group(
+        "experiment suite (optional; only applied if you pass the flag)"
+    )
+    s.add_argument("--suite-index", type=int, default=argparse.SUPPRESS, metavar="N")
+    s.add_argument("--suite-total", type=int, default=argparse.SUPPRESS, metavar="N")
+    s.add_argument("--suite-note", default=argparse.SUPPRESS, metavar="TEXT")
+    return p
+
+
+def _apply_parsed_args(args: argparse.Namespace) -> None:
+    """Copy argparse results into module-level hyperparameters used by train/generate."""
+    global N_LAYER, N_EMBD, N_HEAD, HEAD_DIM, BLOCK_SIZE, NUM_STEPS, TEMPERATURE, SEED
+    global LEARNING_RATE, BETA1, BETA2, INPUT_PATH
+    global EXPERIMENT_SUITE_INDEX, EXPERIMENT_SUITE_TOTAL, EXPERIMENT_SUITE_NOTE
+
+    N_LAYER = args.n_layer
+    N_EMBD = args.n_embd
+    N_HEAD = args.n_head
+    BLOCK_SIZE = args.block_size
+    NUM_STEPS = args.num_steps
+    TEMPERATURE = args.temperature
+    SEED = args.seed
+    LEARNING_RATE = args.learning_rate
+    BETA1 = args.beta1
+    BETA2 = args.beta2
+    INPUT_PATH = args.input
+    HEAD_DIM = N_EMBD // N_HEAD
+
+    if hasattr(args, "suite_index"):
+        EXPERIMENT_SUITE_INDEX = args.suite_index
+    if hasattr(args, "suite_total"):
+        EXPERIMENT_SUITE_TOTAL = args.suite_total
+    if hasattr(args, "suite_note"):
+        EXPERIMENT_SUITE_NOTE = args.suite_note
+
+
+def _validate_hyperparameters(parser: argparse.ArgumentParser) -> None:
+    if N_LAYER < 1:
+        parser.error("--n-layer must be >= 1")
+    if N_EMBD < 1:
+        parser.error("--n-embd must be >= 1")
+    if N_HEAD < 1:
+        parser.error("--n-head must be >= 1")
+    if N_EMBD % N_HEAD != 0:
+        parser.error(
+            f"--n-embd ({N_EMBD}) must be divisible by --n-head ({N_HEAD}) "
+            f"(head dim is {N_EMBD}/{N_HEAD})."
+        )
+    if BLOCK_SIZE < 1:
+        parser.error("--block-size must be >= 1")
+    if NUM_STEPS < 1:
+        parser.error("--num-steps must be >= 1")
+    if TEMPERATURE <= 0:
+        parser.error("--temperature must be > 0")
+    if LEARNING_RATE <= 0:
+        parser.error("--learning-rate must be > 0")
 
 
 def _experiment_suite_lines() -> list[str]:
@@ -371,7 +461,12 @@ def generate(
     return samples
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = _build_arg_parser()
+    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+    _apply_parsed_args(args)
+    _validate_hyperparameters(parser)
+
     # Let there be order among chaos
     random.seed(SEED)
 

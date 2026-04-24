@@ -9,9 +9,11 @@ There is **no** `requirements.txt` or `pyproject.toml` by design: only the Pytho
 | Path | Role |
 |------|------|
 | `microgpt.py` | Compact “single story” version: one script, global state, matches the original blog-style walkthrough. |
-| `microgpt_updated.py` | Refactored entry: hyperparameters, `train()` / `generate()` / `main()`, `save_run_report()`, and richer comments. Imports the **`mgpt`** package (autograd, transformer forward, data) and **`run_report`** (on-disk report format). Prefer this for changes that need structure or tests. |
-| `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), sample metrics (`evaluation.py`: character similarity + three-tier semantic heuristics). Stdlib only. |
-| `run_report/` | Package: parse/compare fields of `output_*.txt`, narrative (`format_run_narrative_lines` in `narrative.py`), path encoding (`format_run_output_path_for_params` in `paths.py`), full report assembly (`build_run_report_lines` in `builder.py`). Shared by `microgpt_updated.py`, `annotate_run_reports.py`, and `compare_run_reports.py`. |
+| `microgpt_updated.py` | Refactored entry: hyperparameters (module constants, overridable via **`argparse`** CLI), `train()` / `generate()` / `main()`, `save_run_report()`, and richer comments. Imports the **`mgpt`** package (autograd, transformer forward, data) and **`run_report`** (on-disk report format). Prefer this for changes that need structure or tests. |
+| `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), sample metrics (`evaluation.py`: character similarity + three-tier semantic heuristics; `compute_sample_quality_metrics` / `format_sample_quality_console_lines` feed the refactored entry and reports). Stdlib only. |
+| `run_report/` | Package: parse/compare fields of `output_*.txt` (`parse.py`), narrative (`narrative.py`), path encoding (`paths.py`), full report assembly (`builder.py`), text loss comparison grids (`text_loss_plot.py`, used by `compare_run_reports.py` when both reports embed CSV loss history). Shared by `microgpt_updated.py`, `annotate_run_reports.py`, `compare_run_reports.py`, and `experiments/report_generator.py`. |
+| `experiments/report_generator.py` | `argparse` CLI: reads one or more `output_*.txt` files (default: glob under repo root), writes an HTML comparison table (`-o`, default `comparison_report.html` at repo root). |
+| `tests/` | `pytest` tests for evaluation, report builder/parse round-trip, and loss-plot helpers. |
 | `annotate_run_reports.py` | Inserts the same `--- What this run is ---` narrative into **existing** `output_*.txt` reports (stdlib-only backfill for past experiments). |
 | `compare_run_reports.py` | Compares two `output_*.txt` files: parsed config keys, final loss, ordered inference samples. Stdlib-only; exit `0` / `1` / `2` (match / diff / error). |
 | `input.txt` | One document per line (e.g. names). If missing, `microgpt.py` / `microgpt_updated.py` can download the classic names dataset from the makemore repo. |
@@ -23,11 +25,18 @@ There is **no** `requirements.txt` or `pyproject.toml` by design: only the Pytho
 # Refactored entry (recommended)
 python microgpt_updated.py
 
+# Refactored entry: override hyperparameters for this run (see --help)
+python microgpt_updated.py --help
+
 # Original compact script
 python microgpt.py
 ```
 
-Expect stdout: dataset size, vocab size, parameter count, training loss per step, then 20 sampled “hallucinated” names. **`microgpt_updated.py` also writes** a run report file under the current directory (default name from `format_run_output_path()`). **`microgpt.py` does not** write that file.
+**How to use microgpt_updated.py** (baseline, `--help`, `--input`, source-only vs CLI, sweep reproduction, report tools): **`README.md` → [How to use microgpt_updated.py](README.md#how-to-use-microgpt_updatedpy)**.
+
+**Run experiments examples** (distinct `N_HEAD` × `NUM_STEPS` from saved `output_*.txt`): **`README.md` → [Run experiments examples](README.md#run-experiments-examples)** and **`docs/M2-semantic-quality.md`** (Commands → *Run experiments examples*).
+
+Expect stdout: dataset size, vocab size, parameter count, training loss per step, then 20 sampled “hallucinated” names. **`microgpt_updated.py` also writes** a run report file under the current directory (default name from `format_run_output_path()`). **`microgpt.py` does not** write that file. **`microgpt_updated.py`** is the only script with a CLI; flags map to the same symbols documented in `README.md` (e.g. `--num-steps` → `NUM_STEPS`). Experiment-suite fields (`--suite-index`, `--suite-total`, `--suite-note`) use `argparse.SUPPRESS` so omitting them leaves any values you set in the source file unchanged for that run.
 
 **Backfill narrative on old reports** (same text as new runs, parsed from the config block):
 
@@ -36,13 +45,21 @@ python annotate_run_reports.py
 python annotate_run_reports.py path/to/output_L1_....txt
 ```
 
-**Compare two saved reports** (config + final loss + inference samples; ignores narrative and glossary):
+**Compare two saved reports** (config + final loss + inference samples; ignores narrative, glossary, quality blocks, and loss-history CSV for *equality*, but prints **text loss graphs** when both files include `--- Loss history (CSV: step,loss) ---`):
 
 ```bash
 python compare_run_reports.py path/to/output_A.txt path/to/output_B.txt
+python compare_run_reports.py path/to/output_A.txt path/to/output_B.txt --loss-bins 96 --loss-height 14
 ```
 
-Exit codes: `0` all match, `1` some field or sample differs, `2` bad args or parse failure.
+**HTML comparison** of one or more reports (table + tier bars; defaults to all `output_*.txt` under repo root):
+
+```bash
+python experiments/report_generator.py
+python experiments/report_generator.py path/to/a.txt path/to/b.txt -o comparison_report.html
+```
+
+Exit codes (`compare_run_reports.py`): `0` all match, `1` some field or sample differs, `2` bad args or parse failure. `report_generator.py` exits `2` if no input files or render error.
 
 **Runtime**: Training is 1000 steps by default and is **slow** (scalar autograd in Python). That is expected.
 
@@ -51,8 +68,8 @@ Exit codes: `0` all match, `1` some field or sample differs, `2` bad args or par
 - **Autograd**: `Value` in `mgpt/value.py` implements forward ops with local gradients; `loss.backward()` walks the graph. No PyTorch.
 - **Model**: GPT-2–like stack with **RMSNorm** (not LayerNorm), **no biases**, **ReLU** in the MLP (not GELU). KV caches for attention are part of the live graph during training (not detached). Forward step: `mgpt/model.py` (`gpt()`).
 - **Data**: Character-level tokens; a special **BOS** (beginning-of-sequence) token wraps each line. `BLOCK_SIZE` limits context; sampling stops at BOS or max length.
-- **Hyperparameters**: In `microgpt.py` they are module-level names (`n_layer`, `n_embd`, …). In `microgpt_updated.py` they are `N_LAYER`, `N_EMBD`, `BLOCK_SIZE`, … at the top of the file.
-- **Run reports** (`microgpt_updated.py` only): After training, `save_run_report()` writes a text report including `--- What this run is ---` (input file + training summary + what loss and samples mean), then optional `--- Experiment suite ---` if any of `EXPERIMENT_SUITE_INDEX`, `EXPERIMENT_SUITE_TOTAL`, or `EXPERIMENT_SUITE_NOTE` is set, then config, final loss, inference samples, and a parameter glossary. The narrative is implemented in `run_report/narrative.py` (`format_run_narrative_lines`) and shared with `annotate_run_reports.py`. **`compare_run_reports.py`** uses `run_report/parse.py` and diffs structured fields plus sample lines for quick regression checks.
+- **Hyperparameters**: In `microgpt.py` they are module-level names (`n_layer`, `n_embd`, …). In `microgpt_updated.py` they are `N_LAYER`, `N_EMBD`, `BLOCK_SIZE`, … at the top of the file, with optional **CLI overrides** parsed in `main()` (`_build_arg_parser()`, `_apply_parsed_args()`, `_validate_hyperparameters()`).
+- **Run reports** (`microgpt_updated.py` only): After training and `generate()`, `compute_sample_quality_metrics()` supplies character and semantic-tier stats; `save_run_report()` writes a text report including `--- What this run is ---` (input file + training summary + what loss and samples mean), then optional `--- Experiment suite ---` if any of `EXPERIMENT_SUITE_INDEX`, `EXPERIMENT_SUITE_TOTAL`, or `EXPERIMENT_SUITE_NOTE` is set, then config, final loss, optional `--- Sample quality (character-level) ---` and `--- Semantic quality (three-tier) ---`, optional `--- Loss history (CSV: step,loss) ---` (from the in-memory `loss_history` list), inference samples, and a parameter glossary. The narrative is implemented in `run_report/narrative.py` (`format_run_narrative_lines`) and shared with `annotate_run_reports.py`. **`compare_run_reports.py`** uses `run_report/parse.py` and diffs config, final loss, and sample lines; **`experiments/report_generator.py`** parses the same format into an HTML sweep summary.
 
 When adding features, keep the **no third-party dependencies** rule unless the project owner explicitly changes that.
 

@@ -2,6 +2,25 @@
 
 Three-tier **heuristic** sample evaluation (training-corpus membership, plausibility score, nonsense flags) plus character-level distribution similarity. Stdlib-only; lives in `mgpt/evaluation.py`.
 
+## Flow (code → artifacts)
+
+```mermaid
+flowchart TB
+  Train[microgpt_updated.train]
+  Gen[microgpt_updated.generate]
+  Eval[mgpt.evaluation.compute_sample_quality_metrics]
+  Report[run_report.build_run_report_lines]
+  Disk[output_*.txt]
+  HTML[experiments/report_generator.py]
+  Cmp[compare_run_reports.py]
+  Train --> Gen
+  Gen --> Eval
+  Eval --> Report
+  Report --> Disk
+  Disk --> HTML
+  Disk --> Cmp
+```
+
 ## Slices (completed)
 
 | Slice | Outcome |
@@ -14,11 +33,56 @@ Three-tier **heuristic** sample evaluation (training-corpus membership, plausibi
 
 ## Commands
 
+Full CLI and workflow map: **`README.md`** → *How to use microgpt_updated.py* and *Run experiments examples*.
+
 ```bash
+# Train, print samples + quality block, write output_*.txt (with loss history + quality sections)
 python microgpt_updated.py
+python microgpt_updated.py --help
+
+# Tests
 python -m pytest tests/test_evaluation.py tests/test_text_loss_plot.py -q
+python -m pytest tests/ -q
+
+# HTML: all output_*.txt under repo root → comparison_report.html at repo root
+python experiments/report_generator.py
+
+# HTML: explicit inputs and output path (script adds repo root to sys.path; works from any cwd)
+python experiments/report_generator.py path/to/run_a.txt path/to/run_b.txt -o /tmp/cmp.html
 python experiments/report_generator.py -o comparison_report.html
-# (script adds repo root to sys.path so it works from any cwd)
+
+# Diff two reports (config, loss, samples); text loss grids if both contain --- Loss history ---
+python compare_run_reports.py path/to/A.txt path/to/B.txt
+python compare_run_reports.py path/to/A.txt path/to/B.txt --loss-bins 96 --loss-height 14
+
+# Backfill narrative on older reports (unchanged by M2)
+python annotate_run_reports.py
+python annotate_run_reports.py path/to/output_L1_....txt
+```
+
+### Run experiments examples
+
+CLI invocations that reproduce the **distinct `(N_HEAD, NUM_STEPS)` pairs** from saved `output_L*.txt` in this repo (`L=1`, `E=16`, `B=16`, `T=0.5`, `seed=42`). Full flag reference: `python microgpt_updated.py --help`.
+
+```bash
+# 4 heads, 1000 steps — multi-head baseline (output_…_H4_…_S1000_….txt)
+python microgpt_updated.py
+
+# 4 heads, 2000 steps (output_…_H4_…_S2000_….txt)
+python microgpt_updated.py --num-steps 2000
+
+# 1 head, 1000 steps (output_…_H1_…_S1000_….txt)
+python microgpt_updated.py --n-head 1
+
+
+# 1 head, 2000 steps (output_…_H1_…_S2000_….txt)
+python microgpt_updated.py --n-head 1 --num-steps 2000
+```
+
+Optional suite labels for multi-run HTML tables:
+
+```bash
+python microgpt_updated.py --num-steps 500 --temperature 0.7 --suite-index 1 --suite-total 4 --suite-note "temperature sweep"
 ```
 
 ## Notes
