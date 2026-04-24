@@ -12,7 +12,6 @@ NARRATIVE_REQUIRED_CONFIG_KEYS: frozenset[str] = frozenset(
         "N_LAYER",
         "N_EMBD",
         "N_HEAD",
-        "HEAD_DIM",
         "BLOCK_SIZE",
         "NUM_STEPS",
         "TEMPERATURE",
@@ -29,7 +28,6 @@ def format_run_narrative_lines(
     n_layer: int,
     n_embd: int,
     n_head: int,
-    head_dim: int,
     block_size: int,
     num_steps: int,
     temperature: float,
@@ -44,6 +42,8 @@ def format_run_narrative_lines(
     ``annotate_run_reports.py`` stay aligned for past and future runs.
     """
     in_name = Path(input_path).name if input_path else "(unknown file)"
+    per_head = n_embd // n_head if n_head else 0
+    head_word = "head" if n_head == 1 else "heads"
     return [
         NARRATIVE_SECTION_HEADER,
         "",
@@ -54,9 +54,10 @@ def format_run_narrative_lines(
         f"{block_size} token positions (including BOS).",
         "",
         "Training: A small decoder-only transformer predicts the next character at "
-        "each position (cross-entropy). This run uses "
-        f"{n_layer} layer(s), width {n_embd}, {n_head} attention head(s) with "
-        f"head width {head_dim}, trained for {num_steps} optimizer steps. "
+        "each position (cross-entropy). Architecture: "
+        f"{n_layer} layer(s), hidden width N_EMBD={n_embd}, N_HEAD={n_head} "
+        f"({n_embd} split across {n_head} {head_word} → {per_head} per head), trained for "
+        f"{num_steps} optimizer steps. "
         f"Init and sampling use seed {seed}; Adam with linear learning-rate decay is "
         "used during training (see config block below).",
         "",
@@ -76,8 +77,9 @@ def run_parameter_glossary_lines() -> list[str]:
         "Architecture / data:",
         "  N_LAYER   — Transformer depth (stacked attention+MLP blocks).",
         "  N_EMBD    — Hidden width; each token position is a vector this long.",
-        "  N_HEAD    — Attention heads; splits N_EMBD into parallel subspaces.",
-        "  HEAD_DIM  — N_EMBD // N_HEAD; per-head key/query/value width (must divide evenly).",
+        "  N_HEAD    — Number of attention heads; chosen with N_EMBD (per-head width is N_EMBD//N_HEAD).",
+        "  HEAD_DIM  — N_EMBD // N_HEAD. New reports: a # comment line under N_HEAD shows this for reading;",
+        "            experiment tables omit it; parsers set HEAD_DIM on the in-memory config.",
         "  BLOCK_SIZE — Max context length (positions 0..BLOCK_SIZE-1); must fit longest line + BOS.",
         "Training / optimisation:",
         "  NUM_STEPS — One training step = one document forward-backward + Adam update.",
@@ -90,8 +92,8 @@ def run_parameter_glossary_lines() -> list[str]:
         "Data:",
         "  INPUT_PATH — Training text file (one document per line; BOS wraps each line).",
         "",
-        "Filename tokens (output_L…_E…_H…_D…_B…_S…_T…_seed…_YYYYMMDD_HHMMSS.txt):",
-        "  L = N_LAYER, E = N_EMBD, H = N_HEAD, D = HEAD_DIM, B = BLOCK_SIZE,",
+        "Filename tokens (output_L…_E…_H…_B…_S…_T…_seed…_YYYYMMDD_HHMMSS.txt):",
+        "  L = N_LAYER, E = N_EMBD, H = N_HEAD, B = BLOCK_SIZE,",
         "  S = NUM_STEPS, T = TEMPERATURE (decimal point written as 'p', e.g. 0p5).",
         "  YYYYMMDD_HHMMSS = local wall-clock time when the report path is built.",
         f"  Default folder: <microgpt repo>/{DEFAULT_RUN_REPORT_DIR.as_posix()}/ "

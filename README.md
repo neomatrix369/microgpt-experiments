@@ -40,7 +40,7 @@ python microgpt.py
 
 **What you should see:** dataset size, vocabulary size, parameter count, training loss printed per step (updating on one line), then a short banner and **20** sampled lines (default task: hallucinated names). After that, **`microgpt_updated.py`** prints a **sample quality** summary (character-level similarity to the training corpus plus a three-tier semantic heuristic: real / plausible / nonsense).
 
-**`microgpt_updated.py` only:** it also saves a **run report** under **`outputs/`** (created if missing; see [Run reports](#run-reports)). The compact `microgpt.py` does not write this file. CLI flags only exist on the refactored entry; `microgpt.py` remains edit-the-constants only.
+**`microgpt_updated.py` only:** it also saves a **run report** under **`outputs/`** (created if missing; see [Run reports](#run-reports)). Filenames use stem tokens `L`/`E`/`H`/`B`/… (no separate token for per-head width; that follows from `N_EMBD` and `N_HEAD`). The compact `microgpt.py` does not write this file. CLI flags only exist on the refactored entry; `microgpt.py` remains edit-the-constants only.
 
 If `input.txt` is missing, both scripts download the classic names list from the makemore repository.
 
@@ -56,7 +56,7 @@ Together, the sections below cover **everything you need** to drive this script:
 | **Source-only knobs** (no CLI yet) | Edit the file for `EPS_ADAM`, `NAMES_URL`, or defaults you want when omitting flags |
 | **Reproduce project sweeps** | [Run experiments examples](#run-experiments-examples) (distinct `N_HEAD` × `NUM_STEPS` from saved `output_*.txt`) |
 | **Label runs for HTML tables** | [Configuration](#configuration) example: `--suite-index` / `--suite-total` / `--suite-note` |
-| **Diff or aggregate reports** | [Run reports](#run-reports): `compare_run_reports.py`, `experiments/report_generator.py` (both expect paths under **`outputs/`** by convention; defaults use `run_reports_dir`) |
+| **Diff or aggregate reports** | [Run reports](#run-reports): `compare_run_reports.py`, `experiments/report_generator.py` (both expect paths under **`outputs/`** by convention; defaults use `run_reports_dir`). Config **diffs and HTML “shared / varying” tables omit `HEAD_DIM`** (derived from `N_EMBD` and `N_HEAD`). |
 
 Illustrative one-offs (not tied to the sweep table):
 
@@ -70,19 +70,19 @@ python microgpt_updated.py --input my_corpus.txt --num-steps 500
 These commands match the **distinct hyperparameter combinations** seen in `outputs/output_L*.txt` run reports from experiments in this project (`L=1`, `E=16`, `B=16`, `T=0.5`, `seed=42`; sweeps varied **`N_HEAD`** and **`NUM_STEPS`** only). Omitted flags use the defaults at the top of `microgpt_updated.py`. (The `outputs/` directory is gitignored; regenerate reports with the lines below from the repo root.)
 
 ```bash
-# 4 heads, 1000 steps — multi-head baseline (output_L1_E16_H4_D4_B16_S1000_*.txt)
+# 4 heads, 1000 steps — multi-head baseline (output_L1_E16_H4_B16_S1000_*.txt)
 python microgpt_updated.py
 
-# 4 heads, 2000 steps — longer multi-head run (output_L1_E16_H4_D4_B16_S2000_*.txt)
+# 4 heads, 2000 steps — longer multi-head run (output_L1_E16_H4_B16_S2000_*.txt)
 python microgpt_updated.py --num-steps 2000
 
-# 1 head, 1000 steps — single-head baseline (output_L1_E16_H1_D16_B16_S1000_*.txt)
+# 1 head, 1000 steps — single-head baseline (output_L1_E16_H1_B16_S1000_*.txt)
 python microgpt_updated.py --n-head 1
 
-# 1 head, 50 steps — short training / ablation (output_L1_E16_H1_D16_B16_S50_*.txt)
+# 1 head, 50 steps — short training / ablation (output_L1_E16_H1_B16_S50_*.txt)
 python microgpt_updated.py --n-head 1 --num-steps 50
 
-# 1 head, 2000 steps — single-head long run (output_L1_E16_H1_D16_B16_S2000_*.txt)
+# 1 head, 2000 steps — single-head long run (output_L1_E16_H1_B16_S2000_*.txt)
 python microgpt_updated.py --n-head 1 --num-steps 2000
 ```
 
@@ -203,9 +203,9 @@ flowchart LR
 
 ## Run reports
 
-The refactored script saves a text summary of a training run: a short **narrative** section (`--- What this run is ---`) that explains the input file, the training setup, and how to read the final loss and generated samples; an optional **experiment suite** block for variant sweeps; a flat **config** listing; the last-step **loss**; optional **sample quality** (`--- Sample quality (character-level) ---`: `CHAR_DIST_SIMILARITY`, average sample length, length similarity); optional **semantic quality** (`--- Semantic quality (three-tier) ---`: tier counts/ratios, overall score, commented example lines); optional **`--- Loss history (CSV: step,loss) ---`** (one row per training step, for plotting or diff tools); **inference samples**; and a **parameter glossary** (including how the output filename is encoded).
+The refactored script saves a text summary of a training run: a short **narrative** section (`--- What this run is ---`) that explains the input file, the training setup, and how to read the final loss and generated samples; an optional **experiment suite** block for variant sweeps; a flat **config** listing; the last-step **loss**; optional **sample quality** (`--- Sample quality (character-level) ---`: `CHAR_DIST_SIMILARITY`, average sample length, length similarity); optional **semantic quality** (`--- Semantic quality (three-tier) ---`: tier counts/ratios, overall score, commented example lines); optional **`--- Loss history (CSV: step,loss) ---`** (one row per training step, for plotting or diff tools); **inference samples**; and a **parameter glossary** (including how the output filename is encoded). **Architecture in the config block** is the primary pair **`N_EMBD`** and **`N_HEAD`**. Per-head width is **not** a separate `KEY=value` line; it appears as a **`#` comment** (`HEAD_DIM = N_EMBD // N_HEAD = …`). Parsers still populate `HEAD_DIM` in the in-memory config (`run_report.parse.parse_run_report_text`) for tools that expect it.
 
-- **Default path:** **`<microgpt repo>/outputs/`** + filename built from hyperparameters, e.g. `outputs/output_L1_E16_H4_D4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The folder is `run_reports_dir(repo_root)` in `run_report.paths` (i.e. `repo_root / DEFAULT_RUN_REPORT_DIR`), where **repo root** is the directory containing `microgpt_updated.py`. That matches `experiments/report_generator.py` and `annotate_run_reports.py`, so tools find the same files even if your shell cwd is elsewhere. Override with **`--output-dir`** on `microgpt_updated.py` (path is resolved from cwd). The stem encodes `L/E/H/D/B/S/T/seed` plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built, so repeat runs with the same hyperparameters do not overwrite earlier reports. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py` and `format_run_output_path_for_params()` in `run_report/paths.py`.
+- **Default path:** **`<microgpt repo>/outputs/`** + filename built from hyperparameters, e.g. `outputs/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The folder is `run_reports_dir(repo_root)` in `run_report.paths` (i.e. `repo_root / DEFAULT_RUN_REPORT_DIR`), where **repo root** is the directory containing `microgpt_updated.py`. That matches `experiments/report_generator.py` and `annotate_run_reports.py`, so tools find the same files even if your shell cwd is elsewhere. Override with **`--output-dir`** on `microgpt_updated.py` (path is resolved from cwd). The stem encodes `L/E/H/B/S/T/seed` (per-head width is `N_EMBD//N_HEAD` and is not a separate filename token) plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built, so repeat runs with the same hyperparameters do not overwrite earlier reports. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py` and `format_run_output_path_for_params()` in `run_report/paths.py`.
 - **Past reports:** to add or refresh the narrative on files saved before the narrative existed, run from the repo root:
 
   ```bash
@@ -217,7 +217,7 @@ The refactored script saves a text summary of a training run: a short **narrativ
 
 ### Comparing two reports
 
-Use **`compare_run_reports.py`** when you want a quick diff between runs (e.g. after a hyperparameter sweep or a code change): it prints differences in the **config block** (`N_LAYER`, `N_EMBD`, optimiser fields, `INPUT_PATH`, etc.), the **final training loss**, and each **inference sample** line (side-by-side; `*` marks a mismatch). Narrative text, experiment-suite notes, quality blocks, loss-history CSV, and the parameter glossary are **not** compared as structured fields—only config, scalar final loss, and ordered samples drive the exit code.
+Use **`compare_run_reports.py`** when you want a quick diff between runs (e.g. after a hyperparameter sweep or a code change): it prints differences in the **config block** (`N_LAYER`, `N_EMBD`, `N_HEAD`, optimiser fields, `INPUT_PATH`, etc.). **`HEAD_DIM` is not listed** there: it is fully determined by `N_EMBD` and `N_HEAD` (see `run_report.DERIVED_EXPERIMENT_CFG_KEYS` in the code). The tool also diffs the **final training loss** and each **inference sample** line (side-by-side; `*` marks a mismatch). Narrative text, experiment-suite notes, quality blocks, loss-history CSV, and the parameter glossary are **not** compared as structured fields—only the keys above, scalar final loss, and ordered samples drive the exit code.
 
 If **both** reports contain `--- Loss history (CSV: step,loss) ---`, the tool also prints **text graphs**: shared-scale min–mean–max bands per bin, a Δ row between runs, and RMSE / mean |Δ| over binned means (implementation: `run_report/text_loss_plot.py`).
 
@@ -232,7 +232,7 @@ python compare_run_reports.py outputs/output_A.txt outputs/output_B.txt --loss-b
 
 ### HTML comparison (multi-run)
 
-After you have two or more `output_*.txt` files (for example from head-count or embedding sweeps), **`experiments/report_generator.py`** builds one HTML page with: **shared vs varying training config** (like `compare_run_reports.py`), the **quality summary** table (final loss, tiers, first sample), **aligned inference samples** across all runs when there are 2+ files (with `*` on rows that differ), **loss history text graphs** when reports embed CSV history (one run → single ASCII curve; several → baseline = lowest final loss among runs with history, each other run compared to that baseline; tune with `--loss-bins` / `--loss-height`), and **tier bar charts** for runs that have semantic metrics. Reports **without** a semantic quality block are **legacy**: one collapsed table row plus filenames/losses; tier bars only for modern runs.
+After you have two or more `output_*.txt` files (for example from head-count or `N_EMBD` sweeps), **`experiments/report_generator.py`** builds one HTML page with: **shared vs varying training config** (same key set as `compare_run_reports.py`: no `HEAD_DIM` row) plus a short **“derived”** note with each file’s `HEAD_DIM` for readability, the **quality summary** table (final loss, tiers, first sample), **aligned inference samples** across all runs when there are 2+ files (with `*` on rows that differ), **loss history text graphs** when reports embed CSV history (one run → single ASCII curve; several → baseline = lowest final loss among runs with history, each other run compared to that baseline; tune with `--loss-bins` / `--loss-height`), and **tier bar charts** for runs that have semantic metrics. Reports **without** a semantic quality block are **legacy**: one collapsed table row plus filenames/losses; tier bars only for modern runs.
 
 ```bash
 # From anywhere: defaults to outputs/output_*.txt under the repo root; writes outputs/comparison_report.html
@@ -287,7 +287,7 @@ python microgpt_updated.py --n-head 4 --suite-index 2 --suite-total 2 --suite-no
 | `N_LAYER` | `1` | Transformer depth |
 | `N_EMBD` | `16` | Model width / embedding dimension |
 | `BLOCK_SIZE` | `16` | Max context length (positions 0 … `BLOCK_SIZE - 1`) |
-| `N_HEAD` | `4` | Attention heads (`HEAD_DIM = N_EMBD // N_HEAD`) |
+| `N_HEAD` | `4` | Attention heads (CLI `--n-head`); per-head width is `N_EMBD // N_HEAD`, not a separate constant. |
 | `LEARNING_RATE` | `0.01` | Base Adam step size (scaled by linear decay) |
 | `BETA1` | `0.85` | Adam first-moment decay |
 | `BETA2` | `0.99` | Adam second-moment decay |
@@ -303,7 +303,7 @@ python microgpt_updated.py --n-head 4 --suite-index 2 --suite-total 2 --suite-no
 
 ### `microgpt.py` (compact script)
 
-Same roles under lowercase names: `n_layer`, `n_embd`, `block_size`, `n_head`, `head_dim`, `learning_rate`, `beta1`, `beta2`, `eps_adam`, `num_steps`, `temperature`, plus inline `names_url` and `'input.txt'`.
+Same roles under lowercase names: `n_layer`, `n_embd`, `block_size`, `n_head`, `head_dim` (always `n_embd // n_head` in the compact script), `learning_rate`, `beta1`, `beta2`, `eps_adam`, `num_steps`, `temperature`, plus inline `names_url` and `'input.txt'`.
 
 **Practical tips:**
 
@@ -317,7 +317,7 @@ Same roles under lowercase names: `n_layer`, `n_embd`, `block_size`, `n_head`, `
 
 - **Dependency policy**: Keep the project **stdlib-only** unless maintainers explicitly add third-party packages.
 - **Where to edit**: Use **`microgpt_updated.py`** for the training/generation orchestration and **`mgpt/`** for model or autograd internals; keep **`microgpt.py`** aligned with the “one file narrative” when possible. Report layout and parsing live in **`run_report/`**.
-- **Run report text**: The human-readable story in `--- What this run is ---` is implemented in **`run_report/narrative.py`** (`format_run_narrative_lines`); `annotate_run_reports.py` imports it so backfilled files match new runs.
+- **Run report text**: The human-readable story in `--- What this run is ---` is implemented in **`run_report/narrative.py`** (`format_run_narrative_lines`); `annotate_run_reports.py` imports it so backfilled files match new runs. Primary architecture lines are `N_EMBD` / `N_HEAD`; `HEAD_DIM` is derived (comment line in the file, or filled by the parser; omitted from `compare_run_reports` / HTML config tables).
 - **Comparing reports**: After two runs, `python compare_run_reports.py outputs/output_….txt outputs/output_….txt` summarizes config / loss / sample diffs and optional loss-history text graphs (see [Comparing two reports](#comparing-two-reports)).
 - **Batch HTML summaries**: See [HTML comparison (multi-run)](#html-comparison-multi-run).
 - **Educational comments**: The refactored file includes explanatory comments; avoid stripping them without an explicit request.

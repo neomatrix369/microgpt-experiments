@@ -33,7 +33,7 @@ _QUALITY_INT_KEYS = frozenset(
     }
 )
 
-# Order used when printing a single shared config (both runs agree) — and display.
+# Order used when printing a full parsed config (or legacy tools).
 _CFG_DISPLAY_ORDER: tuple[str, ...] = (
     "N_LAYER",
     "N_EMBD",
@@ -49,6 +49,10 @@ _CFG_DISPLAY_ORDER: tuple[str, ...] = (
     "EPS_ADAM",
     "INPUT_PATH",
 )
+
+# Omitted from experiment HTML / compare_run_reports tables: set by N_EMBD and N_HEAD;
+# see ``ParsedRunReport.config`` (``HEAD_DIM``) and the derived comment in new reports.
+DERIVED_EXPERIMENT_CFG_KEYS: frozenset[str] = frozenset({"HEAD_DIM"})
 
 
 @dataclass(frozen=True)
@@ -69,6 +73,11 @@ def cfg_keys_in_display_order(keys: set[str]) -> list[str]:
     return ordered + rest
 
 
+def cfg_keys_for_experiment_table(keys: set[str]) -> list[str]:
+    """Config keys to show in experiment diffs: primary run flags, not derived fields."""
+    return cfg_keys_in_display_order(keys - DERIVED_EXPERIMENT_CFG_KEYS)
+
+
 def _parse_quality_key_values(text: str) -> dict[str, int | float]:
     out: dict[str, int | float] = {}
     for line in text.splitlines():
@@ -87,6 +96,21 @@ def _parse_quality_key_values(text: str) -> dict[str, int | float]:
             except ValueError:
                 pass
     return out
+
+
+def _normalize_head_dim(cfg: dict[str, int | float | str]) -> None:
+    """Set ``HEAD_DIM`` to canonical ``N_EMBD // N_HEAD`` when both ints are present.
+
+    New reports may omit ``HEAD_DIM``; legacy reports may include a redundant line.
+    We always store the derived value so consumers see one consistent architecture.
+    """
+    n_embd = cfg.get("N_EMBD")
+    n_head = cfg.get("N_HEAD")
+    if not isinstance(n_embd, int) or not isinstance(n_head, int) or n_head < 1:
+        return
+    if n_embd % n_head != 0:
+        return
+    cfg["HEAD_DIM"] = n_embd // n_head
 
 
 def _parse_semantic_example_lines(text: str) -> dict[str, list[str]]:
@@ -141,6 +165,8 @@ def parse_run_report_text(text: str) -> ParsedRunReport:
                 pass
         elif key in _CFG_STR:
             cfg[key] = rest.strip()
+
+    _normalize_head_dim(cfg)
 
     for line in text.splitlines():
         stripped = line.strip()

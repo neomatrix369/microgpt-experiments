@@ -19,7 +19,9 @@ Usage::
 
 Exit codes: ``0`` if config, loss, and samples all match; ``1`` if any differ;
 ``2`` for bad arguments or an unreadable report. Narrative and glossary sections
-are not compared. See ``README.md`` (section *Comparing two reports*) for context.
+are not compared. The printed config diff omits ``HEAD_DIM`` (it follows from
+``N_EMBD`` and ``N_HEAD``). See ``README.md`` (section *Comparing two reports*)
+for context.
 
 Reports are usually under ``<repo>/outputs/`` (see ``run_report.paths.run_reports_dir``);
 pass explicit paths if yours live elsewhere.
@@ -31,7 +33,8 @@ import sys
 from pathlib import Path
 
 from run_report import (
-    cfg_keys_in_display_order,
+    DERIVED_EXPERIMENT_CFG_KEYS,
+    cfg_keys_for_experiment_table,
     loss_curve_comparison_lines,
     parse_run_report_text,
 )
@@ -58,7 +61,9 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
     cfg_b, loss_b, samp_b, hist_b = parse_run_report(text_b)
 
     exit_code = 0
-    keys = sorted(set(cfg_a) | set(cfg_b))
+    keys = sorted(
+        (set(cfg_a) | set(cfg_b)) - DERIVED_EXPERIMENT_CFG_KEYS
+    )
     config_diff: list[tuple[str, str, str]] = []
     shared_keys: set[str] = set()
     for k in keys:
@@ -78,7 +83,7 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
     if config_diff:
         if shared_keys:
             print("--- Shared config (both runs) ---")
-            for k in cfg_keys_in_display_order(shared_keys):
+            for k in cfg_keys_for_experiment_table(shared_keys):
                 print(f"  {k}={_fmt_val(cfg_a[k])}")
             print()
         print("--- Config differences ---")
@@ -91,7 +96,7 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         print()
     else:
         print("--- Config (same both runs) ---")
-        display_keys = cfg_keys_in_display_order(set(cfg_a))
+        display_keys = cfg_keys_for_experiment_table(set(cfg_a))
         for k in display_keys:
             print(f"  {k}={_fmt_val(cfg_a[k])}")
         print()

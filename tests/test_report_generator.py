@@ -33,7 +33,6 @@ def _report_body(*, modern_semantic: bool) -> str:
     base = """N_LAYER=1
 N_EMBD=16
 N_HEAD=4
-HEAD_DIM=4
 BLOCK_SIZE=16
 NUM_STEPS=1000
 TEMPERATURE=0.5
@@ -76,7 +75,6 @@ Sample  1: solo
         base = """N_LAYER=1
 N_EMBD=16
 N_HEAD=1
-HEAD_DIM=16
 BLOCK_SIZE=16
 NUM_STEPS=4
 TEMPERATURE=0.5

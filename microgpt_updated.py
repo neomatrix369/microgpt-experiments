@@ -6,7 +6,9 @@ The scalar autograd ``Value``, transformer forward, and data helpers live in
 ``mgpt``; ``output_*.txt`` format and parsing live in ``run_report``.
 
 Hyperparameters: edit module-level constants and/or pass CLI flags (see
-``python microgpt_updated.py --help``). Run reports default to
+``python microgpt_updated.py --help``). Primary width/attention controls are
+``N_EMBD`` and ``N_HEAD``; per-head width is ``N_EMBD // N_HEAD`` (see the ``#`` line
+in saved reports, not a separate ``KEY=``). Run reports default to
 ``run_reports_dir(Path(__file__).resolve().parent)`` (the ``outputs/`` folder next to this
 script). User-facing overview: ``README.md`` (sections *How to use microgpt_updated.py*
 and *Run experiments examples*).
@@ -248,7 +250,7 @@ def format_run_output_path(
 ) -> Path:
     """Build a filesystem-safe path from the current module hyperparameters.
 
-    Example: ``output_L1_E16_H4_D4_B16_S1000_T0p5_seed42_20260422_153045.txt``
+    Example: ``output_L1_E16_H4_B16_S1000_T0p5_seed42_20260422_153045.txt``
     (temperature dots become ``p`` so the stem stays a single clear token;
     trailing ``YYYYMMDD_HHMMSS`` is local wall-clock time for this run).
     """
@@ -256,7 +258,6 @@ def format_run_output_path(
         n_layer=N_LAYER,
         n_embd=N_EMBD,
         n_head=N_HEAD,
-        head_dim=N_EMBD // N_HEAD,
         block_size=BLOCK_SIZE,
         num_steps=NUM_STEPS,
         temperature=TEMPERATURE,
@@ -277,12 +278,10 @@ def save_run_report(
     semantic_quality: dict[str, object] | None = None,
 ) -> None:
     """Write hyperparameters, final training loss, and generated lines to a file."""
-    head_dim = N_EMBD // N_HEAD
     lines = build_run_report_lines(
         n_layer=N_LAYER,
         n_embd=N_EMBD,
         n_head=N_HEAD,
-        head_dim=head_dim,
         block_size=BLOCK_SIZE,
         num_steps=NUM_STEPS,
         temperature=TEMPERATURE,

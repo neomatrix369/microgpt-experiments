@@ -14,7 +14,13 @@ from .narrative import (
     format_run_narrative_lines,
     run_parameter_glossary_lines,
 )
-from .parse import ParsedRunReport, cfg_keys_in_display_order, parse_run_report_text
+from .parse import (
+    DERIVED_EXPERIMENT_CFG_KEYS,
+    ParsedRunReport,
+    cfg_keys_for_experiment_table,
+    cfg_keys_in_display_order,
+    parse_run_report_text,
+)
 from .paths import (
     DEFAULT_RUN_REPORT_DIR,
     format_run_output_path_for_params,
@@ -29,11 +35,13 @@ from .text_loss_plot import (
 )
 
 __all__ = [
+    "DERIVED_EXPERIMENT_CFG_KEYS",
     "ParsedRunReport",
     "bin_mean",
     "bin_stats",
     "bin_step_ranges",
     "build_run_report_lines",
+    "cfg_keys_for_experiment_table",
     "cfg_keys_in_display_order",
     "format_run_narrative_lines",
     "DEFAULT_RUN_REPORT_DIR",

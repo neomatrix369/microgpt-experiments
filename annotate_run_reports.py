@@ -45,7 +45,6 @@ def annotate_file(path: Path) -> str:
     n_layer = int(cfg["N_LAYER"])
     n_embd = int(cfg["N_EMBD"])
     n_head = int(cfg["N_HEAD"])
-    head_dim = int(cfg["HEAD_DIM"])
     block_size = int(cfg["BLOCK_SIZE"])
     num_steps = int(cfg["NUM_STEPS"])
     temperature = float(cfg["TEMPERATURE"])
@@ -65,7 +64,6 @@ def annotate_file(path: Path) -> str:
                 n_layer=n_layer,
                 n_embd=n_embd,
                 n_head=n_head,
-                head_dim=head_dim,
                 block_size=block_size,
                 num_steps=num_steps,
                 temperature=temperature,
