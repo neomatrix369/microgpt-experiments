@@ -14,7 +14,42 @@ from mgpt.evaluation import (
     is_pronounceable,
 )
 from run_report.builder import build_run_report_lines
-from run_report.parse import parse_run_report_text
+from run_report.parse import cfg_keys_for_experiment_table, parse_run_report_text
+
+
+class TestConfigKeyDisplayOrder(unittest.TestCase):
+    def test_head_dim_follows_n_embd_and_n_head_in_table_order(self) -> None:
+        keys = {"HEAD_DIM", "N_LAYER", "N_EMBD", "N_HEAD", "BLOCK_SIZE"}
+        ordered = cfg_keys_for_experiment_table(keys)
+        i_e = ordered.index("N_EMBD")
+        i_h = ordered.index("N_HEAD")
+        i_d = ordered.index("HEAD_DIM")
+        self.assertLess(i_e, i_h)
+        self.assertLess(i_h, i_d)
+
+    def test_builder_writes_head_dim_immediately_after_n_head(self) -> None:
+        lines = build_run_report_lines(
+            n_layer=1,
+            n_embd=16,
+            n_head=4,
+            block_size=16,
+            num_steps=1,
+            temperature=0.5,
+            seed=42,
+            learning_rate=0.01,
+            beta1=0.9,
+            beta2=0.99,
+            eps_adam=1e-8,
+            input_path="x.txt",
+            final_loss=1.0,
+            samples=["a"],
+            loss_history=None,
+        )
+        idx_embd = next(i for i, L in enumerate(lines) if L.startswith("N_EMBD="))
+        idx_head = next(i for i, L in enumerate(lines) if L.startswith("N_HEAD="))
+        idx_dim = next(i for i, L in enumerate(lines) if L.startswith("HEAD_DIM="))
+        self.assertLess(idx_embd, idx_head)
+        self.assertLess(idx_head, idx_dim)
 
 
 class TestPronounceableAndNonsense(unittest.TestCase):
@@ -150,7 +185,7 @@ Sample  1: test
         p = parse_run_report_text(text)
         self.assertEqual(p.config.get("HEAD_DIM"), 4)
 
-    def test_new_build_report_omits_head_dim_line_parse_backfills(self) -> None:
+    def test_new_build_report_includes_head_dim_line(self) -> None:
         lines = build_run_report_lines(
             n_layer=1,
             n_embd=16,
@@ -168,11 +203,12 @@ Sample  1: test
             samples=["a"],
             loss_history=None,
         )
-        self.assertIsNone(
-            next((L for L in lines if L.startswith("HEAD_DIM=")), None)
+        self.assertEqual(
+            next(L for L in lines if L.startswith("HEAD_DIM=")),
+            "HEAD_DIM=4",
         )
         self.assertTrue(
-            any("HEAD_DIM" in L and "N_EMBD" in L and L.strip().startswith("#") for L in lines)
+            any("HEAD_DIM" in L and L.strip().startswith("#") for L in lines)
         )
         p = parse_run_report_text("\n".join(lines))
         self.assertEqual(p.config.get("HEAD_DIM"), 4)

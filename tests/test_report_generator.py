@@ -59,6 +59,8 @@ class ReportGeneratorLegacyTest(unittest.TestCase):
         self.assertIn("alex", html)
         self.assertIn("Training config", html)
         self.assertIn("Shared across all runs", html)
+        self.assertIn("HEAD_DIM", html)
+        self.assertIn("calculated from N_EMBD and N_HEAD", html)
         self.assertIn("Inference samples (aligned)", html)
         # Different first samples → compare_run_reports-style mismatch marker
         self.assertRegex(html, r"<td class=\"samp-idx\">\* 1</td>")

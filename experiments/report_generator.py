@@ -3,9 +3,9 @@
 
 Default inputs: ``run_reports_dir(repo_root)`` / ``output_*.txt`` where *repo_root*
 is the parent of ``experiments/`` (same rule as ``microgpt_updated.py`` saves).
-Shared / varying **training** config tables omit ``HEAD_DIM`` (derived from
-``N_EMBD`` and ``N_HEAD``; see ``run_report.DERIVED_EXPERIMENT_CFG_KEYS``); a short
-*derived* note lists per-head width per file.
+Shared / varying **training** config tables list the same keys as
+``compare_run_reports.py`` (including ``HEAD_DIM``, after parse normalization).
+``HEAD_DIM`` rows include a short note that the value follows from ``N_EMBD`` and ``N_HEAD``.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ if str(_REPO_ROOT) not in sys.path:
 from run_report.parse import (
     ParsedRunReport,
     cfg_keys_for_experiment_table,
+    experiment_cfg_calculated_caption,
     parse_run_report_text,
 )
 from run_report.paths import DEFAULT_RUN_REPORT_DIR, run_reports_dir
@@ -116,7 +117,11 @@ def _html_config_block(records: list[dict[str, object]]) -> str:
     for key in ordered:
         vals = [c.get(key) for c in cfg_list]
         if all(v == vals[0] for v in vals):
-            shared_lines.append(f"{key}={_fmt_cfg_val(vals[0])}")
+            line = f"{key}={_fmt_cfg_val(vals[0])}"
+            cap = experiment_cfg_calculated_caption(key)
+            if cap:
+                line += f"  — {cap}"
+            shared_lines.append(line)
         else:
             varying.append(
                 (
@@ -144,8 +149,16 @@ def _html_config_block(records: list[dict[str, object]]) -> str:
         body_rows = []
         for key, cells in varying:
             tds = "".join(f"<td><code>{html.escape(c)}</code></td>" for c in cells)
+            cap = experiment_cfg_calculated_caption(key)
+            if cap:
+                th_key = (
+                    f'<code>{html.escape(key)}</code>'
+                    f'<div class="cfg-calculated-hint">{html.escape(cap)}</div>'
+                )
+            else:
+                th_key = f"<code>{html.escape(key)}</code>"
             body_rows.append(
-                f"            <tr><th scope=\"row\"><code>{html.escape(key)}</code></th>{tds}</tr>"
+                f"            <tr><th scope=\"row\">{th_key}</th>{tds}</tr>"
             )
         parts.append("    <h3>Varying by run</h3>")
         parts.append("    <table class=\"config-diff\">")
@@ -154,28 +167,6 @@ def _html_config_block(records: list[dict[str, object]]) -> str:
         parts.append("    </table>")
     elif not shared_lines:
         parts.append("    <p><em>No config key=value lines parsed.</em></p>")
-
-    derived_bits: list[str] = []
-    for r in records:
-        cfg = r.get("config")
-        if not isinstance(cfg, dict):
-            continue
-        hd = cfg.get("HEAD_DIM")
-        if not isinstance(hd, int):
-            continue
-        ne = int(cfg.get("N_EMBD", 0) or 0)  # type: ignore[arg-type]
-        nh = int(cfg.get("N_HEAD", 0) or 0)  # type: ignore[arg-type]
-        fn = _short_label(str(r.get("filename", "")), 32)
-        derived_bits.append(
-            f"<code>{html.escape(fn)}</code>: <code>HEAD_DIM={hd}</code> "
-            f"(<code>N_EMBD</code>÷<code>N_HEAD</code> = {ne}÷{nh})"
-        )
-    if derived_bits:
-        parts.append(
-            '    <p class="config-derived"><em>Derived (not an independent run flag) &mdash; '
-            "omitted from the table above:</em> "
-            f"{'  '.join(derived_bits)}</p>"
-        )
 
     parts.append("    </div>")
     return "\n".join(parts)
@@ -428,9 +419,12 @@ def generate_html_report(
       background: #fff; border: 1px solid #ddd; padding: 0.75rem;
       overflow-x: auto; line-height: 1.25;
     }}
-    table.config-diff th[scope="row"] {{ white-space: nowrap; text-align: left; }}
+    table.config-diff th[scope="row"] {{ text-align: left; vertical-align: top; }}
+    .cfg-calculated-hint {{
+      font-size: 0.72rem; font-weight: normal; color: #555; margin-top: 0.25rem;
+      line-height: 1.3; max-width: 16rem; white-space: normal;
+    }}
     table.samples-grid .samp-idx {{ font-family: ui-monospace, monospace; color: #666; width: 2.5rem; }}
-    .config-derived {{ font-size: 0.85rem; color: #444; margin-top: 0.75rem; max-width: 60rem; line-height: 1.45; }}
   </style>
 </head>
 <body>

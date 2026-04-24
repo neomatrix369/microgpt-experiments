@@ -33,7 +33,9 @@ _QUALITY_INT_KEYS = frozenset(
     }
 )
 
-# Order used when printing a full parsed config (or legacy tools).
+# Order for parsed-config display (compare, HTML, etc.). Keep ``N_EMBD``, ``N_HEAD``,
+# ``HEAD_DIM`` contiguous with ``HEAD_DIM`` immediately after ``N_HEAD`` — it is
+# ``N_EMBD // N_HEAD`` and must not sort before those keys alphabetically.
 _CFG_DISPLAY_ORDER: tuple[str, ...] = (
     "N_LAYER",
     "N_EMBD",
@@ -50,9 +52,11 @@ _CFG_DISPLAY_ORDER: tuple[str, ...] = (
     "INPUT_PATH",
 )
 
-# Omitted from experiment HTML / compare_run_reports tables: set by N_EMBD and N_HEAD;
-# see ``ParsedRunReport.config`` (``HEAD_DIM``) and the derived comment in new reports.
-DERIVED_EXPERIMENT_CFG_KEYS: frozenset[str] = frozenset({"HEAD_DIM"})
+# Keys to omit entirely from compare/HTML experiment tables (none today).
+DERIVED_EXPERIMENT_CFG_KEYS: frozenset[str] = frozenset()
+
+# Keys listed in tables whose values follow from other fields (not primary sweep knobs).
+CALCULATED_EXPERIMENT_CFG_KEYS: frozenset[str] = frozenset({"HEAD_DIM"})
 
 
 @dataclass(frozen=True)
@@ -74,8 +78,15 @@ def cfg_keys_in_display_order(keys: set[str]) -> list[str]:
 
 
 def cfg_keys_for_experiment_table(keys: set[str]) -> list[str]:
-    """Config keys to show in experiment diffs: primary run flags, not derived fields."""
+    """Config keys for compare/HTML tables (minus :data:`DERIVED_EXPERIMENT_CFG_KEYS`)."""
     return cfg_keys_in_display_order(keys - DERIVED_EXPERIMENT_CFG_KEYS)
+
+
+def experiment_cfg_calculated_caption(key: str) -> str | None:
+    """Human note for keys in :data:`CALCULATED_EXPERIMENT_CFG_KEYS` (HTML / CLI)."""
+    if key == "HEAD_DIM":
+        return "calculated from N_EMBD and N_HEAD (N_EMBD // N_HEAD)"
+    return None
 
 
 def _parse_quality_key_values(text: str) -> dict[str, int | float]:
@@ -101,7 +112,7 @@ def _parse_quality_key_values(text: str) -> dict[str, int | float]:
 def _normalize_head_dim(cfg: dict[str, int | float | str]) -> None:
     """Set ``HEAD_DIM`` to canonical ``N_EMBD // N_HEAD`` when both ints are present.
 
-    New reports may omit ``HEAD_DIM``; legacy reports may include a redundant line.
+    Reports may omit or include ``HEAD_DIM=``; we always set the canonical ``N_EMBD // N_HEAD``.
     We always store the derived value so consumers see one consistent architecture.
     """
     n_embd = cfg.get("N_EMBD")

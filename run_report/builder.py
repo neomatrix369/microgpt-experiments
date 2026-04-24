@@ -49,8 +49,8 @@ def build_run_report_lines(
         f"N_LAYER={n_layer}",
         f"N_EMBD={n_embd}",
         f"N_HEAD={n_head}",
-        f"# Per-head width (derived from N_EMBD, N_HEAD; not a separate run flag): "
-        f"HEAD_DIM = N_EMBD // N_HEAD = {n_embd // n_head}",
+        f"HEAD_DIM={n_embd // n_head}",
+        f"# HEAD_DIM is N_EMBD // N_HEAD (not a separate sweep knob).",
         f"BLOCK_SIZE={block_size}",
         f"NUM_STEPS={num_steps}",
         f"TEMPERATURE={temperature}",

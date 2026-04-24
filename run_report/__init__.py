@@ -15,10 +15,12 @@ from .narrative import (
     run_parameter_glossary_lines,
 )
 from .parse import (
+    CALCULATED_EXPERIMENT_CFG_KEYS,
     DERIVED_EXPERIMENT_CFG_KEYS,
     ParsedRunReport,
     cfg_keys_for_experiment_table,
     cfg_keys_in_display_order,
+    experiment_cfg_calculated_caption,
     parse_run_report_text,
 )
 from .paths import (
@@ -35,8 +37,10 @@ from .text_loss_plot import (
 )
 
 __all__ = [
+    "CALCULATED_EXPERIMENT_CFG_KEYS",
     "DERIVED_EXPERIMENT_CFG_KEYS",
     "ParsedRunReport",
+    "experiment_cfg_calculated_caption",
     "bin_mean",
     "bin_stats",
     "bin_step_ranges",

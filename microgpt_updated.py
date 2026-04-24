@@ -7,8 +7,8 @@ The scalar autograd ``Value``, transformer forward, and data helpers live in
 
 Hyperparameters: edit module-level constants and/or pass CLI flags (see
 ``python microgpt_updated.py --help``). Primary width/attention controls are
-``N_EMBD`` and ``N_HEAD``; per-head width is ``N_EMBD // N_HEAD`` (see the ``#`` line
-in saved reports, not a separate ``KEY=``). Run reports default to
+``N_EMBD`` and ``N_HEAD``; ``HEAD_DIM`` is ``N_EMBD // N_HEAD`` and appears in saved
+reports immediately after those two as ``HEAD_DIM=`` (plus a ``#`` note). Run reports default to
 ``run_reports_dir(Path(__file__).resolve().parent)`` (the ``outputs/`` folder next to this
 script). User-facing overview: ``README.md`` (sections *How to use microgpt_updated.py*
 and *Run experiments examples*).
@@ -58,19 +58,19 @@ N_LAYER = 1
 # tunable parameter
 N_EMBD = 16
 
-# Maximum context length of the attention window. The longest name in the
-# dataset is 15 characters, so 16 covers every example with room for BOS.
-# tunable parameter (fixed for this dataset)
-BLOCK_SIZE = 16
-
 # Number of attention heads. Multi-head attention lets the model attend to
 # different positional relationships in parallel. 4 heads of dimension 4
 # (16 / 4) is a reasonable split for this embedding size.
 # tunable parameter (fixed by the embedding size and number of heads)
 N_HEAD = 4
 
-# Derived dimension of each attention head.
+# Derived dimension of each attention head (N_EMBD // N_HEAD).
 HEAD_DIM = N_EMBD // N_HEAD
+
+# Maximum context length of the attention window. The longest name in the
+# dataset is 15 characters, so 16 covers every example with room for BOS.
+# tunable parameter (fixed for this dataset)
+BLOCK_SIZE = 16
 
 # Initial learning rate for Adam. 0.01 is on the high side for larger
 # models but works well here because the model is small and we apply
@@ -172,6 +172,7 @@ def _apply_parsed_args(args: argparse.Namespace) -> None:
     N_LAYER = args.n_layer
     N_EMBD = args.n_embd
     N_HEAD = args.n_head
+    HEAD_DIM = N_EMBD // N_HEAD
     BLOCK_SIZE = args.block_size
     NUM_STEPS = args.num_steps
     TEMPERATURE = args.temperature
@@ -180,7 +181,6 @@ def _apply_parsed_args(args: argparse.Namespace) -> None:
     BETA1 = args.beta1
     BETA2 = args.beta2
     INPUT_PATH = args.input
-    HEAD_DIM = N_EMBD // N_HEAD
 
     if hasattr(args, "suite_index"):
         EXPERIMENT_SUITE_INDEX = args.suite_index

@@ -26,10 +26,10 @@ flowchart TB
 | Slice | Outcome |
 |-------|---------|
 | **1 — `mgpt/evaluation.py`** | `char_distribution_similarity`, `evaluate_sample_quality`, `is_pronounceable`, `score_plausibility`, `classify_plausible_words`, `is_nonsense`, `count_nonsense_words`, `evaluate_semantic_quality`. Max consonant run **4** (English-friendly); `overall_quality_score` clamped to `[0, 1]`. |
-| **2 — `run_report`** | `build_run_report_lines(..., char_dist_score=, quality_metrics=, semantic_quality=)`. `ParsedRunReport` extended; `parse_run_report_text` reads `--- Sample quality ---` and `--- Semantic quality ---` blocks, normalizes `HEAD_DIM` from `N_EMBD`/`N_HEAD`, and example comment lines. On-disk **config** lists `N_EMBD` / `N_HEAD` plus a `#` line for derived per-head width (no `HEAD_DIM=` row). |
+| **2 — `run_report`** | `build_run_report_lines(..., char_dist_score=, quality_metrics=, semantic_quality=)`. `ParsedRunReport` extended; `parse_run_report_text` reads `--- Sample quality ---` and `--- Semantic quality ---` blocks, normalizes `HEAD_DIM` from `N_EMBD`/`N_HEAD`, and example comment lines. On-disk **config** order: **`N_EMBD` → `N_HEAD` → `HEAD_DIM=`** (then `#` note and remaining keys). |
 | **3 — `microgpt_updated.py`** | After `generate()`, prints the SAMPLE QUALITY block and passes metrics into `save_run_report()`. |
-| **4 — `experiments/report_generator.py`** | `python experiments/report_generator.py [outputs/output_*.txt ...] -o outputs/comparison_report.html` builds a comparison table and tier bar rows (shared/varying config omits `HEAD_DIM`; a footnote shows derived per-head width; defaults use `run_reports_dir` from repo root). |
-| **5 — Tests** | `tests/test_evaluation.py` (pronounce/nonsense, tier extremes, score bounds, builder/parse round-trip). |
+| **4 — `experiments/report_generator.py`** | `python experiments/report_generator.py [outputs/output_*.txt ...] -o outputs/comparison_report.html` builds a comparison table and tier bar rows (shared/varying config uses `_CFG_DISPLAY_ORDER`: **`HEAD_DIM` after `N_EMBD` and `N_HEAD`**, with a calculated-field hint; defaults use `run_reports_dir` from repo root). |
+| **5 — Tests** | `tests/test_evaluation.py`, `test_text_loss_plot.py`, `test_report_generator.py`, `test_paths.py` (evaluation, loss ASCII helpers, HTML report smoke/structure, `outputs/` path helpers). |
 
 ## Commands
 
@@ -51,7 +51,7 @@ python experiments/report_generator.py
 python experiments/report_generator.py path/to/run_a.txt path/to/run_b.txt -o /tmp/cmp.html
 python experiments/report_generator.py -o outputs/comparison_report.html
 
-# Diff two reports (primary config keys, loss, samples; HEAD_DIM omitted from config output)
+# Diff two reports (config keys in _CFG_DISPLAY_ORDER: N_EMBD → N_HEAD → HEAD_DIM → …; loss; samples)
 python compare_run_reports.py path/to/A.txt path/to/B.txt
 python compare_run_reports.py path/to/A.txt path/to/B.txt --loss-bins 96 --loss-height 14
 
@@ -74,6 +74,8 @@ python microgpt_updated.py --num-steps 2000
 # 1 head, 1000 steps (output_…_H1_…_S1000_….txt)
 python microgpt_updated.py --n-head 1
 
+# 1 head, 50 steps — short ablation (output_…_H1_…_S50_….txt)
+python microgpt_updated.py --n-head 1 --num-steps 50
 
 # 1 head, 2000 steps (output_…_H1_…_S2000_….txt)
 python microgpt_updated.py --n-head 1 --num-steps 2000
@@ -87,6 +89,6 @@ python microgpt_updated.py --num-steps 500 --temperature 0.7 --suite-index 1 --s
 
 ## Notes
 
-- **Reuse**: `compute_sample_quality_metrics` + `format_sample_quality_console_lines` centralize what `microgpt_updated.py` prints and saves; semantic evaluation uses one pass over samples with cached corpus bigrams / average length. Parsed reports set `HEAD_DIM` to `N_EMBD // N_HEAD` in memory. **Compare / HTML** treat `HEAD_DIM` as **derived** (see `run_report.DERIVED_EXPERIMENT_CFG_KEYS`); HTML adds a one-line “derived” note, CLI compare omits it from the printed config diff. Tier/quality table labels still use `n_head` × `head_dim` for a compact “geometry” readout.
+- **Reuse**: `compute_sample_quality_metrics` + `format_sample_quality_console_lines` centralize what `microgpt_updated.py` prints and saves; semantic evaluation uses one pass over samples with cached corpus bigrams / average length. Parsed reports set `HEAD_DIM` to `N_EMBD // N_HEAD` in memory. **Compare / HTML** list `HEAD_DIM` **after** `N_EMBD` and `N_HEAD` (`cfg_keys_for_experiment_table` / `_CFG_DISPLAY_ORDER`) and label it via `experiment_cfg_calculated_caption`. Tier/quality table labels still use `n_head` × `head_dim` for a compact “geometry” readout.
 - **Tier overlap**: Tier 1 (real), Tier 2 (plausible among **non-real**), and Tier 3 (nonsense on **all** samples) are not mutually exclusive by construction; `distribution_sum` in `evaluate_semantic_quality` is a sanity hint only.
-- **Hypothesis testing (N_HEAD × N_EMBD sweeps)**: Compare `OVERALL_QUALITY_SCORE` and tier ratios across `output_*.txt` reports or the HTML summary (per-head width follows from `N_EMBD` and `N_HEAD`).
+- **Hypothesis testing (e.g. N_HEAD × NUM_STEPS)**: Compare `OVERALL_QUALITY_SCORE` and tier ratios across `outputs/output_*.txt` reports or the HTML summary (per-head width follows from `N_EMBD` and `N_HEAD`).
