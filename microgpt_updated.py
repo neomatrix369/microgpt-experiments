@@ -15,6 +15,10 @@ import random
 from pathlib import Path
 
 from mgpt.data import build_tokeniser, load_dataset
+from mgpt.evaluation import (
+    compute_sample_quality_metrics,
+    format_sample_quality_console_lines,
+)
 from mgpt.model import KVCache, StateDict, Tokeniser, gpt
 from mgpt.ops import Vector, make_matrix, softmax
 from mgpt.value import Value
@@ -157,6 +161,9 @@ def save_run_report(
     final_loss: float,
     samples: list[str],
     loss_history: list[float],
+    char_dist_score: float | None = None,
+    quality_metrics: dict[str, float] | None = None,
+    semantic_quality: dict[str, object] | None = None,
 ) -> None:
     """Write hyperparameters, final training loss, and generated lines to a file."""
     head_dim = N_EMBD // N_HEAD
@@ -178,6 +185,9 @@ def save_run_report(
         samples=samples,
         loss_history=loss_history,
         experiment_suite_lines=_experiment_suite_lines(),
+        char_dist_score=char_dist_score,
+        quality_metrics=quality_metrics,
+        semantic_quality=semantic_quality,
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -383,12 +393,26 @@ def main() -> None:
     for i, name in enumerate(samples, start=1):
         print(f"Sample {i:2d}: {name}")
 
+    char_dist_score, quality_metrics, semantic_quality = compute_sample_quality_metrics(
+        samples, docs
+    )
+    for line in format_sample_quality_console_lines(
+        char_dist_score,
+        quality_metrics,
+        semantic_quality,
+        n_samples=len(samples),
+    ):
+        print(line)
+
     out_path = format_run_output_path()
     save_run_report(
         out_path,
         final_loss=final_loss,
         samples=samples,
         loss_history=loss_history,
+        char_dist_score=char_dist_score,
+        quality_metrics=quality_metrics,
+        semantic_quality=semantic_quality,
     )
     print(f"\nSaved run report to {out_path.resolve()}")
 

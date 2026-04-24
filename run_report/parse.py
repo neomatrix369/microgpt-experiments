@@ -13,6 +13,26 @@ _CFG_FLOAT = frozenset(
 )
 _CFG_STR = frozenset({"INPUT_PATH"})
 
+_QUALITY_FLOAT_KEYS = frozenset(
+    {
+        "CHAR_DIST_SIMILARITY",
+        "AVG_SAMPLE_LENGTH",
+        "LENGTH_SIMILARITY",
+        "TIER1_REAL_RATIO",
+        "TIER2_PLAUSIBLE_RATIO",
+        "TIER2_AVG_SCORE",
+        "TIER3_NONSENSE_RATIO",
+        "OVERALL_QUALITY_SCORE",
+    }
+)
+_QUALITY_INT_KEYS = frozenset(
+    {
+        "TIER1_REAL_COUNT",
+        "TIER2_PLAUSIBLE_COUNT",
+        "TIER3_NONSENSE_COUNT",
+    }
+)
+
 # Order used when printing a single shared config (both runs agree) — and display.
 _CFG_DISPLAY_ORDER: tuple[str, ...] = (
     "N_LAYER",
@@ -37,12 +57,62 @@ class ParsedRunReport:
     final_loss: float
     samples: list[str]
     loss_history: list[float] | None
+    char_dist_score: float | None = None
+    avg_sample_length: float | None = None
+    length_similarity: float | None = None
+    semantic_quality: dict[str, object] | None = None
 
 
 def cfg_keys_in_display_order(keys: set[str]) -> list[str]:
     ordered = [k for k in _CFG_DISPLAY_ORDER if k in keys]
     rest = sorted(k for k in keys if k not in _CFG_DISPLAY_ORDER)
     return ordered + rest
+
+
+def _parse_quality_key_values(text: str) -> dict[str, int | float]:
+    out: dict[str, int | float] = {}
+    for line in text.splitlines():
+        if "=" not in line or line.startswith("#"):
+            continue
+        key, _, rest = line.partition("=")
+        key = key.strip()
+        if key in _QUALITY_INT_KEYS:
+            try:
+                out[key] = int(rest.strip())
+            except ValueError:
+                pass
+        elif key in _QUALITY_FLOAT_KEYS:
+            try:
+                out[key] = float(rest.strip())
+            except ValueError:
+                pass
+    return out
+
+
+def _parse_semantic_example_lines(text: str) -> dict[str, list[str]]:
+    examples: dict[str, list[str]] = {
+        "tier1_examples": [],
+        "tier2_examples": [],
+        "tier3_examples": [],
+    }
+    pending: str | None = None
+    for line in text.splitlines():
+        s = line.strip()
+        if s == "# Tier 1 Examples (Real):":
+            pending = "tier1_examples"
+            continue
+        if s == "# Tier 2 Examples (Plausible):":
+            pending = "tier2_examples"
+            continue
+        if s == "# Tier 3 Examples (Nonsense):":
+            pending = "tier3_examples"
+            continue
+        if pending and line.startswith("#   "):
+            examples[pending] = [
+                x.strip() for x in line[3:].strip().split(",") if x.strip()
+            ]
+            pending = None
+    return examples
 
 
 def parse_run_report_text(text: str) -> ParsedRunReport:
@@ -119,6 +189,40 @@ def parse_run_report_text(text: str) -> ParsedRunReport:
             if m:
                 samples.append(m.group(1))
 
+    qv = _parse_quality_key_values(text)
+
+    def _qf(key: str) -> float | None:
+        v = qv.get(key)
+        return float(v) if isinstance(v, (int, float)) else None
+
+    char_dist_f = _qf("CHAR_DIST_SIMILARITY")
+    avg_len_f = _qf("AVG_SAMPLE_LENGTH")
+    len_sim_f = _qf("LENGTH_SIMILARITY")
+
+    semantic: dict[str, object] | None = None
+    if any(k.startswith("TIER") for k in qv) or "OVERALL_QUALITY_SCORE" in qv:
+        ex = _parse_semantic_example_lines(text)
+        semantic = {
+            "tier1_real_count": int(qv.get("TIER1_REAL_COUNT", 0)),
+            "tier1_real_ratio": float(qv.get("TIER1_REAL_RATIO", 0.0)),
+            "tier2_plausible_count": int(qv.get("TIER2_PLAUSIBLE_COUNT", 0)),
+            "tier2_plausible_ratio": float(qv.get("TIER2_PLAUSIBLE_RATIO", 0.0)),
+            "tier2_avg_score": float(qv.get("TIER2_AVG_SCORE", 0.0)),
+            "tier3_nonsense_count": int(qv.get("TIER3_NONSENSE_COUNT", 0)),
+            "tier3_nonsense_ratio": float(qv.get("TIER3_NONSENSE_RATIO", 0.0)),
+            "overall_quality_score": float(qv.get("OVERALL_QUALITY_SCORE", 0.0)),
+            "tier1_examples": ex["tier1_examples"],
+            "tier2_examples": ex["tier2_examples"],
+            "tier3_examples": ex["tier3_examples"],
+        }
+
     return ParsedRunReport(
-        config=cfg, final_loss=final_loss, samples=samples, loss_history=loss_history
+        config=cfg,
+        final_loss=final_loss,
+        samples=samples,
+        loss_history=loss_history,
+        char_dist_score=char_dist_f,
+        avg_sample_length=avg_len_f,
+        length_similarity=len_sim_f,
+        semantic_quality=semantic,
     )

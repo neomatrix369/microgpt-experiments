@@ -10,7 +10,7 @@ There is **no** `requirements.txt` or `pyproject.toml` by design: only the Pytho
 |------|------|
 | `microgpt.py` | Compact “single story” version: one script, global state, matches the original blog-style walkthrough. |
 | `microgpt_updated.py` | Refactored entry: hyperparameters, `train()` / `generate()` / `main()`, `save_run_report()`, and richer comments. Imports the **`mgpt`** package (autograd, transformer forward, data) and **`run_report`** (on-disk report format). Prefer this for changes that need structure or tests. |
-| `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`). Stdlib only. |
+| `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), sample metrics (`evaluation.py`: character similarity + three-tier semantic heuristics). Stdlib only. |
 | `run_report/` | Package: parse/compare fields of `output_*.txt`, narrative (`format_run_narrative_lines` in `narrative.py`), path encoding (`format_run_output_path_for_params` in `paths.py`), full report assembly (`build_run_report_lines` in `builder.py`). Shared by `microgpt_updated.py`, `annotate_run_reports.py`, and `compare_run_reports.py`. |
 | `annotate_run_reports.py` | Inserts the same `--- What this run is ---` narrative into **existing** `output_*.txt` reports (stdlib-only backfill for past experiments). |
 | `compare_run_reports.py` | Compares two `output_*.txt` files: parsed config keys, final loss, ordered inference samples. Stdlib-only; exit `0` / `1` / `2` (match / diff / error). |
@@ -58,7 +58,7 @@ When adding features, keep the **no third-party dependencies** rule unless the p
 
 ## Testing
 
-There is no automated test suite in-repo yet. If you add one, `pytest` is a reasonable default; document the command in `README.md` and, for assistants, here.
+Run **`pytest`** from the repo root: `python -m pytest tests/ -q`. See `docs/M2-semantic-quality.md` for the semantic-quality / run-report slice log.
 
 ## Git and docs
 
