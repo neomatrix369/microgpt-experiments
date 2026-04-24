@@ -20,6 +20,9 @@ Usage::
 Exit codes: ``0`` if config, loss, and samples all match; ``1`` if any differ;
 ``2`` for bad arguments or an unreadable report. Narrative and glossary sections
 are not compared. See ``README.md`` (section *Comparing two reports*) for context.
+
+Reports are usually under ``<repo>/outputs/`` (see ``run_report.paths.run_reports_dir``);
+pass explicit paths if yours live elsewhere.
 """
 
 from __future__ import annotations

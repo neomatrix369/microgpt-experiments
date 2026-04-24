@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from run_report.parse import parse_run_report_text
+from run_report.paths import run_reports_dir
 from run_report.text_loss_plot import (
     _BAND,
     _D_BLOCKS,
@@ -16,6 +17,7 @@ from run_report.text_loss_plot import (
     bin_stats,
     bin_step_ranges,
     loss_curve_comparison_lines,
+    single_loss_curve_lines,
 )
 
 
@@ -142,14 +144,14 @@ class TestMetricsAndCrossParse(unittest.TestCase):
         path = next(
             (
                 p
-                for p in sorted(repo.glob("output_*.txt"))
+                for p in sorted(run_reports_dir(repo).glob("output_*.txt"))
                 if p.is_file()
                 and "--- Loss history (CSV: step,loss) ---" in p.read_text(encoding="utf-8")
             ),
             None,
         )
         if path is None:
-            self.skipTest("no output_*.txt with loss history in repo root")
+            self.skipTest("no output_*.txt with loss history in outputs/")
         text = path.read_text(encoding="utf-8")
         p = parse_run_report_text(text)
         self.assertIsNotNone(p.loss_history)
@@ -167,6 +169,17 @@ class TestMetricsAndCrossParse(unittest.TestCase):
             early + 0.5,
             "binned curve should be lower at the end than the start for a typical run",
         )
+
+
+class TestSingleLossCurve(unittest.TestCase):
+    def test_includes_grid_with_mean_markers(self) -> None:
+        losses = [3.0, 2.95, 2.8, 2.5, 2.2]
+        lines = single_loss_curve_lines(
+            label="run-a", losses=losses, width=5, grid_height=5
+        )
+        joined = "\n".join(lines)
+        self.assertIn("run-a", joined)
+        self.assertIn(_MEAN, joined)
 
 
 if __name__ == "__main__":

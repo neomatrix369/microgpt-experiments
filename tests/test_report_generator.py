@@ -58,8 +58,40 @@ class ReportGeneratorLegacyTest(unittest.TestCase):
         self.assertIn("Legacy experiments (1):", html)
         self.assertIn("legacy.txt", html)
         self.assertIn("alex", html)
-        # Header row + one modern data row + one legacy summary row
-        self.assertEqual(html.count("<tr"), 3)
+        self.assertIn("Training config", html)
+        self.assertIn("Shared across all runs", html)
+        self.assertIn("Inference samples (aligned)", html)
+        # Different first samples → compare_run_reports-style mismatch marker
+        self.assertRegex(html, r"<td class=\"samp-idx\">\* 1</td>")
+
+    def test_loss_graph_when_history_embedded(self) -> None:
+        loss_csv = """--- Loss history (CSV: step,loss) ---
+0,2.5
+1,2.4
+2,2.3
+3,2.2
+--- Inference samples ---
+Sample  1: solo
+"""
+        base = """N_LAYER=1
+N_EMBD=16
+N_HEAD=1
+HEAD_DIM=16
+BLOCK_SIZE=16
+NUM_STEPS=4
+TEMPERATURE=0.5
+SEED=42
+Final loss (last training step): 2.2000
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            tdir = Path(tmp)
+            p = tdir / "one.txt"
+            p.write_text(base + loss_csv, encoding="utf-8")
+            out = tdir / "out.html"
+            generate_html_report([p], out)
+            html = out.read_text(encoding="utf-8")
+        self.assertIn("Loss history (text graphs)", html)
+        self.assertIn("Loss history (text graph)", html)
 
     def test_legacy_only_shows_message_in_quality_section(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

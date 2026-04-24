@@ -156,6 +156,46 @@ def _format_sample_bins(ranges: list[tuple[int, int]], n_bins: int) -> str:
     return "; ".join(parts)
 
 
+def single_loss_curve_lines(
+    *,
+    label: str,
+    losses: list[float],
+    width: int = 72,
+    grid_height: int = 12,
+) -> list[str]:
+    """One run: binned min–mean–max loss grid (same symbols as :func:`loss_curve_comparison_lines`)."""
+    if width <= 0:
+        raise ValueError("width must be positive")
+    if grid_height < 3:
+        raise ValueError("grid_height must be at least 3 (axis labels)")
+    if not losses:
+        return ["--- Loss history (text graph) ---", "  (no steps)"]
+
+    n_steps = len(losses)
+    ranges = bin_step_ranges(n_steps, width)
+    stats = bin_stats(losses, width)
+    lo = min(mn for _, mn, _ in stats)
+    hi = max(mx for _, _, mx in stats)
+    if hi < lo:
+        lo, hi = hi, lo
+    if hi == lo:
+        hi = lo + 1e-12
+
+    legend = [
+        "--- Loss history (text graph) ---",
+        f"  Run: {label}",
+        "  How to read:",
+        f"    • Horizontal: {width} bins; each bin averages one contiguous block of steps.",
+        f"    • Vertical: loss increases upward (top of grid = higher loss).",
+        f"    • {_BAND} = spread (min–max loss) inside that bin; {_MEAN} = mean loss in that bin.",
+        f"  Sample bins: {_format_sample_bins(ranges, width)}",
+        f"  Loss scale (binned min/max): {lo:.4f} … {hi:.4f}",
+    ]
+    grid = _render_axis_grid(stats, lo, hi, height=grid_height)
+    tail = [f"  {label}:", *[f"  {ln}" for ln in grid]]
+    return legend + tail
+
+
 def loss_curve_comparison_lines(
     *,
     label_a: str,

@@ -11,13 +11,14 @@ There is **no** `requirements.txt` or `pyproject.toml` by design: only the Pytho
 | `microgpt.py` | Compact “single story” version: one script, global state, matches the original blog-style walkthrough. |
 | `microgpt_updated.py` | Refactored entry: hyperparameters (module constants, overridable via **`argparse`** CLI), `train()` / `generate()` / `main()`, `save_run_report()`, and richer comments. Imports the **`mgpt`** package (autograd, transformer forward, data) and **`run_report`** (on-disk report format). Prefer this for changes that need structure or tests. |
 | `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), sample metrics (`evaluation.py`: character similarity + three-tier semantic heuristics; `compute_sample_quality_metrics` / `format_sample_quality_console_lines` feed the refactored entry and reports). Stdlib only. |
-| `run_report/` | Package: parse/compare fields of `output_*.txt` (`parse.py`), narrative (`narrative.py`), path encoding (`paths.py`), full report assembly (`builder.py`), text loss comparison grids (`text_loss_plot.py`, used by `compare_run_reports.py` when both reports embed CSV loss history). Shared by `microgpt_updated.py`, `annotate_run_reports.py`, `compare_run_reports.py`, and `experiments/report_generator.py`. |
-| `experiments/report_generator.py` | `argparse` CLI: reads one or more `output_*.txt` files (default: glob under repo root), writes an HTML comparison table (`-o`, default `comparison_report.html` at repo root). |
+| `run_report/` | Package: parse/compare fields of `output_*.txt` (`parse.py`), narrative (`narrative.py`), **`paths.py`** (`run_reports_dir`, `DEFAULT_RUN_REPORT_DIR`), full report assembly (`builder.py`), text loss comparison grids (`text_loss_plot.py`). Shared by `microgpt_updated.py`, `annotate_run_reports.py`, `compare_run_reports.py`, and `experiments/report_generator.py`. |
+| `experiments/report_generator.py` | `argparse` CLI: reads one or more `output_*.txt` files (default: glob under `outputs/` at repo root), writes HTML (`-o`, default `outputs/comparison_report.html`): shared/varying config, quality table, aligned samples (2+ runs), loss ASCII (`--loss-bins`, `--loss-height`), tier bars. |
 | `tests/` | `pytest` tests for evaluation, report builder/parse round-trip, and loss-plot helpers. |
 | `annotate_run_reports.py` | Inserts the same `--- What this run is ---` narrative into **existing** `output_*.txt` reports (stdlib-only backfill for past experiments). |
 | `compare_run_reports.py` | Compares two `output_*.txt` files: parsed config keys, final loss, ordered inference samples. Stdlib-only; exit `0` / `1` / `2` (match / diff / error). |
 | `input.txt` | One document per line (e.g. names). If missing, `microgpt.py` / `microgpt_updated.py` can download the classic names dataset from the makemore repo. |
-| `output_*.txt` | Optional artifacts written by `microgpt_updated.py` (not by `microgpt.py`): hyperparameters, a short narrative of input/training/output, optional experiment-suite labels, samples, and a parameter glossary. Filename encodes `L/E/H/D/B/S/T/seed` plus `_YYYYMMDD_HHMMSS` (local time when the path is built; see `format_run_output_path()` in this entry script and `format_run_output_path_for_params()` in `run_report/paths.py`). |
+| `outputs/` | Default directory for `output_*.txt` run reports and `comparison_report.html` (`run_report.paths.DEFAULT_RUN_REPORT_DIR`); gitignored. |
+| `output_*.txt` | Optional artifacts written by `microgpt_updated.py` (not by `microgpt.py`), default path **`outputs/`** + stem: hyperparameters, narrative, optional experiment-suite labels, samples, glossary. Filename encodes `L/E/H/D/B/S/T/seed` plus `_YYYYMMDD_HHMMSS` (see `format_run_output_path()` / `format_run_output_path_for_params()`). |
 
 ## How to run
 
@@ -36,7 +37,7 @@ python microgpt.py
 
 **Run experiments examples** (distinct `N_HEAD` × `NUM_STEPS` from saved `output_*.txt`): **`README.md` → [Run experiments examples](README.md#run-experiments-examples)** and **`docs/M2-semantic-quality.md`** (Commands → *Run experiments examples*).
 
-Expect stdout: dataset size, vocab size, parameter count, training loss per step, then 20 sampled “hallucinated” names. **`microgpt_updated.py` also writes** a run report file under the current directory (default name from `format_run_output_path()`). **`microgpt.py` does not** write that file. **`microgpt_updated.py`** is the only script with a CLI; flags map to the same symbols documented in `README.md` (e.g. `--num-steps` → `NUM_STEPS`). Experiment-suite fields (`--suite-index`, `--suite-total`, `--suite-note`) use `argparse.SUPPRESS` so omitting them leaves any values you set in the source file unchanged for that run.
+Expect stdout: dataset size, vocab size, parameter count, training loss per step, then 20 sampled “hallucinated” names. **`microgpt_updated.py` also writes** a run report under **`run_reports_dir(<repo root>)`** / `outputs/` (default from `format_run_output_path()`; **`--output-dir`** overrides; directory created if missing). **`microgpt.py` does not** write that file. **`microgpt_updated.py`** is the only script with a CLI; flags map to the same symbols documented in `README.md` (e.g. `--num-steps` → `NUM_STEPS`). Experiment-suite fields (`--suite-index`, `--suite-total`, `--suite-note`) use `argparse.SUPPRESS` so omitting them leaves any values you set in the source file unchanged for that run.
 
 **Backfill narrative on old reports** (same text as new runs, parsed from the config block):
 
@@ -48,15 +49,15 @@ python annotate_run_reports.py path/to/output_L1_....txt
 **Compare two saved reports** (config + final loss + inference samples; ignores narrative, glossary, quality blocks, and loss-history CSV for *equality*, but prints **text loss graphs** when both files include `--- Loss history (CSV: step,loss) ---`):
 
 ```bash
-python compare_run_reports.py path/to/output_A.txt path/to/output_B.txt
-python compare_run_reports.py path/to/output_A.txt path/to/output_B.txt --loss-bins 96 --loss-height 14
+python compare_run_reports.py outputs/output_A.txt outputs/output_B.txt
+python compare_run_reports.py outputs/output_A.txt outputs/output_B.txt --loss-bins 96 --loss-height 14
 ```
 
-**HTML comparison** of one or more reports (table + tier bars; defaults to all `output_*.txt` under repo root):
+**HTML comparison** of one or more reports (defaults to all `outputs/output_*.txt`):
 
 ```bash
 python experiments/report_generator.py
-python experiments/report_generator.py path/to/a.txt path/to/b.txt -o comparison_report.html
+python experiments/report_generator.py outputs/a.txt outputs/b.txt -o outputs/comparison_report.html
 ```
 
 Exit codes (`compare_run_reports.py`): `0` all match, `1` some field or sample differs, `2` bad args or parse failure. `report_generator.py` exits `2` if no input files or render error.

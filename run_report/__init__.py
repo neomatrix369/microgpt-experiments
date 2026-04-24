@@ -15,8 +15,18 @@ from .narrative import (
     run_parameter_glossary_lines,
 )
 from .parse import ParsedRunReport, cfg_keys_in_display_order, parse_run_report_text
-from .paths import format_run_output_path_for_params
-from .text_loss_plot import bin_mean, bin_stats, bin_step_ranges, loss_curve_comparison_lines
+from .paths import (
+    DEFAULT_RUN_REPORT_DIR,
+    format_run_output_path_for_params,
+    run_reports_dir,
+)
+from .text_loss_plot import (
+    bin_mean,
+    bin_stats,
+    bin_step_ranges,
+    loss_curve_comparison_lines,
+    single_loss_curve_lines,
+)
 
 __all__ = [
     "ParsedRunReport",
@@ -26,8 +36,11 @@ __all__ = [
     "build_run_report_lines",
     "cfg_keys_in_display_order",
     "format_run_narrative_lines",
+    "DEFAULT_RUN_REPORT_DIR",
     "format_run_output_path_for_params",
+    "run_reports_dir",
     "loss_curve_comparison_lines",
+    "single_loss_curve_lines",
     "NARRATIVE_REQUIRED_CONFIG_KEYS",
     "NARRATIVE_SECTION_HEADER",
     "parse_run_report_text",

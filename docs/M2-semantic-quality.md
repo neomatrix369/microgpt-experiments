@@ -10,7 +10,7 @@ flowchart TB
   Gen[microgpt_updated.generate]
   Eval[mgpt.evaluation.compute_sample_quality_metrics]
   Report[run_report.build_run_report_lines]
-  Disk[output_*.txt]
+  Disk[outputs/output_*.txt]
   HTML[experiments/report_generator.py]
   Cmp[compare_run_reports.py]
   Train --> Gen
@@ -28,7 +28,7 @@ flowchart TB
 | **1 — `mgpt/evaluation.py`** | `char_distribution_similarity`, `evaluate_sample_quality`, `is_pronounceable`, `score_plausibility`, `classify_plausible_words`, `is_nonsense`, `count_nonsense_words`, `evaluate_semantic_quality`. Max consonant run **4** (English-friendly); `overall_quality_score` clamped to `[0, 1]`. |
 | **2 — `run_report`** | `build_run_report_lines(..., char_dist_score=, quality_metrics=, semantic_quality=)`. `ParsedRunReport` extended; `parse_run_report_text` reads `--- Sample quality ---` and `--- Semantic quality ---` blocks and example comment lines. |
 | **3 — `microgpt_updated.py`** | After `generate()`, prints the SAMPLE QUALITY block and passes metrics into `save_run_report()`. |
-| **4 — `experiments/report_generator.py`** | `python experiments/report_generator.py [output_*.txt ...] -o comparison_report.html` builds a comparison table and tier bar rows. |
+| **4 — `experiments/report_generator.py`** | `python experiments/report_generator.py [outputs/output_*.txt ...] -o outputs/comparison_report.html` builds a comparison table and tier bar rows (defaults use `run_reports_dir` from repo root). |
 | **5 — Tests** | `tests/test_evaluation.py` (pronounce/nonsense, tier extremes, score bounds, builder/parse round-trip). |
 
 ## Commands
@@ -44,12 +44,12 @@ python microgpt_updated.py --help
 python -m pytest tests/test_evaluation.py tests/test_text_loss_plot.py -q
 python -m pytest tests/ -q
 
-# HTML: all output_*.txt under repo root → comparison_report.html at repo root
+# HTML: all outputs/output_*.txt at repo root → outputs/comparison_report.html
 python experiments/report_generator.py
 
 # HTML: explicit inputs and output path (script adds repo root to sys.path; works from any cwd)
 python experiments/report_generator.py path/to/run_a.txt path/to/run_b.txt -o /tmp/cmp.html
-python experiments/report_generator.py -o comparison_report.html
+python experiments/report_generator.py -o outputs/comparison_report.html
 
 # Diff two reports (config, loss, samples); text loss grids if both contain --- Loss history ---
 python compare_run_reports.py path/to/A.txt path/to/B.txt

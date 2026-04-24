@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .paths import DEFAULT_RUN_REPORT_DIR
+
 # Keys required to build the narrative in ``format_run_narrative_lines`` / annotate.
 NARRATIVE_REQUIRED_CONFIG_KEYS: frozenset[str] = frozenset(
     {
@@ -92,5 +94,7 @@ def run_parameter_glossary_lines() -> list[str]:
         "  L = N_LAYER, E = N_EMBD, H = N_HEAD, D = HEAD_DIM, B = BLOCK_SIZE,",
         "  S = NUM_STEPS, T = TEMPERATURE (decimal point written as 'p', e.g. 0p5).",
         "  YYYYMMDD_HHMMSS = local wall-clock time when the report path is built.",
+        f"  Default folder: <microgpt repo>/{DEFAULT_RUN_REPORT_DIR.as_posix()}/ "
+        "(see run_report.paths.run_reports_dir).",
         "",
     ]

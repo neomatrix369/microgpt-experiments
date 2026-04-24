@@ -3,10 +3,10 @@
 Insert the same ``--- What this run is ---`` narrative that :func:`save_run_report`
 writes into **existing** ``output_*.txt`` files (past experiments).
 
-Stdlib only; run from the repo root::
+Stdlib only; run from the repo root. With no arguments, scans ``outputs/output_*.txt``::
 
     python annotate_run_reports.py
-    python annotate_run_reports.py path/to/output_L1_....txt
+    python annotate_run_reports.py outputs/output_L1_....txt
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from run_report import (
     format_run_narrative_lines,
     parse_run_report_text,
 )
+from run_report.paths import run_reports_dir
 
 
 def annotate_file(path: Path) -> str:
@@ -82,13 +83,16 @@ def annotate_file(path: Path) -> str:
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parent
+    repo_root = Path(__file__).resolve().parent
     if len(sys.argv) > 1:
         paths = [Path(p) for p in sys.argv[1:]]
     else:
-        paths = sorted(root.glob("output_*.txt"))
+        paths = sorted(run_reports_dir(repo_root).glob("output_*.txt"))
     if not paths:
-        print("No output_*.txt files found (pass explicit paths as arguments).")
+        print(
+            f"No output_*.txt in {run_reports_dir(repo_root)} "
+            "(pass explicit paths as arguments)."
+        )
         sys.exit(0)
     for p in paths:
         status = annotate_file(p)

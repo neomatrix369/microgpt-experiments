@@ -27,7 +27,9 @@ ENV/
 .idea/
 .vscode/
 
-# Training run artifacts (regenerate with: python microgpt_updated.py [optional CLI flags])
+# Training run artifacts (default dir: outputs/; regenerate with microgpt_updated.py)
+outputs/
+# Legacy: reports saved in repo root before outputs/ was default
 output_*.txt
 
 # Dataset (scripts download names.txt from makemore when missing)

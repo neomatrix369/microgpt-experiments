@@ -6,7 +6,9 @@ The scalar autograd ``Value``, transformer forward, and data helpers live in
 ``mgpt``; ``output_*.txt`` format and parsing live in ``run_report``.
 
 Hyperparameters: edit module-level constants and/or pass CLI flags (see
-``python microgpt_updated.py --help``). User-facing overview: ``README.md`` (sections *How to use microgpt_updated.py*
+``python microgpt_updated.py --help``). Run reports default to
+``run_reports_dir(Path(__file__).resolve().parent)`` (the ``outputs/`` folder next to this
+script). User-facing overview: ``README.md`` (sections *How to use microgpt_updated.py*
 and *Run experiments examples*).
 
 @karpathy
@@ -28,7 +30,15 @@ from mgpt.evaluation import (
 from mgpt.model import KVCache, StateDict, Tokeniser, gpt
 from mgpt.ops import Vector, make_matrix, softmax
 from mgpt.value import Value
-from run_report import build_run_report_lines, format_run_output_path_for_params
+from run_report import (
+    DEFAULT_RUN_REPORT_DIR,
+    build_run_report_lines,
+    format_run_output_path_for_params,
+    run_reports_dir,
+)
+
+_MICROGPT_REPO_ROOT = Path(__file__).resolve().parent
+_DEFAULT_RUN_REPORTS_DIR = run_reports_dir(_MICROGPT_REPO_ROOT)
 
 # Hyperparameters
 # ====================
@@ -137,6 +147,17 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     s.add_argument("--suite-index", type=int, default=argparse.SUPPRESS, metavar="N")
     s.add_argument("--suite-total", type=int, default=argparse.SUPPRESS, metavar="N")
     s.add_argument("--suite-note", default=argparse.SUPPRESS, metavar="TEXT")
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory for the run report .txt "
+            f"(default: <microgpt repo>/{DEFAULT_RUN_REPORT_DIR}, "
+            "same folder as this script)."
+        ),
+    )
     return p
 
 
@@ -223,7 +244,7 @@ def _experiment_suite_lines() -> list[str]:
 def format_run_output_path(
     *,
     prefix: str = "output",
-    directory: str | Path = ".",
+    directory: str | Path = _DEFAULT_RUN_REPORTS_DIR,
 ) -> Path:
     """Build a filesystem-safe path from the current module hyperparameters.
 
@@ -499,7 +520,13 @@ def main(argv: list[str] | None = None) -> None:
     ):
         print(line)
 
-    out_path = format_run_output_path()
+    report_dir = (
+        args.output_dir.expanduser().resolve()
+        if args.output_dir is not None
+        else _DEFAULT_RUN_REPORTS_DIR
+    )
+    out_path = format_run_output_path(directory=report_dir)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     save_run_report(
         out_path,
         final_loss=final_loss,

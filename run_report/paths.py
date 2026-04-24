@@ -5,6 +5,20 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+# Subdirectory name (under the microgpt repository root) for ``output_*.txt`` run
+# reports and the default HTML comparison path. Created on write as needed.
+DEFAULT_RUN_REPORT_DIR = Path("outputs")
+
+
+def run_reports_dir(repo_root: Path) -> Path:
+    """Return ``repo_root / DEFAULT_RUN_REPORT_DIR``.
+
+    Pass the microgpt **repository root** (the directory that contains
+    ``microgpt_updated.py``), not :func:`pathlib.Path.cwd`, so every tool agrees on
+    where artifacts live regardless of the shell's current directory.
+    """
+    return repo_root / DEFAULT_RUN_REPORT_DIR
+
 
 def format_run_output_path_for_params(
     *,
@@ -17,7 +31,7 @@ def format_run_output_path_for_params(
     temperature: float,
     seed: int,
     prefix: str = "output",
-    directory: str | Path = ".",
+    directory: str | Path = DEFAULT_RUN_REPORT_DIR,
 ) -> Path:
     """Build a filesystem-safe path from hyperparameters and current local time.
 
