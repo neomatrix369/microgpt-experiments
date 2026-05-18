@@ -82,7 +82,7 @@ Run **`pytest`** from the repo root: `python -m pytest tests/ -q` (modules cover
 
 - **`README.md`**: User-facing overview, architecture diagram, configuration tables, and pointers to this file.
 - **`CLAUDE.md`** (this file): project context for Claude Code and compatible assistants—read it when onboarding or before substantive edits.
-- **`AGENT.md`**: short pointer for agent harnesses; it defers to `CLAUDE.md` for full detail.
+- **`AGENTS.md`**: short pointer for agent harnesses; it defers to `CLAUDE.md` for full detail.
 
 ## Notes for assistants
 
