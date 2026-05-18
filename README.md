@@ -125,7 +125,8 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`output_*.txt`** | Optional: written by `microgpt_updated.py` under **`outputs/`** by default; not produced by `microgpt.py`. Names encode hyperparameters and a local `_YYYYMMDD_HHMMSS` suffix (see [Run reports](#run-reports)). |
 | **`README.md`** | This overview (architecture, config, run reports). |
 | **`CLAUDE.md`** | Maintainer / assistant context: conventions, internals, which file to edit. |
-| **`AGENT.md`** | Short pointer to `CLAUDE.md` for agent harnesses. |
+| **`AGENTS.md`** | Short pointer to `README.md` / `CLAUDE.md` for agent harnesses. |
+| **`example-experiments/`** | Checked-in **`compare_run_reports.py`** output (and similar) illustrating report diffs; see [Example compare transcript](#example-compare-transcript). Raw `output_*.txt` files are ignored repo-wide ([`.gitignore`](./.gitignore)); add them with `git add -f` only if you intend to track full reports next to the compare text. |
 
 ---
 
@@ -229,6 +230,10 @@ python compare_run_reports.py outputs/output_A.txt outputs/output_B.txt --loss-b
 ```
 
 **Exit codes:** `0` — parsed config, loss, and all sample strings match; `1` — at least one difference; `2` — wrong number of arguments, a path is not a file, or a report could not be parsed (e.g. missing final loss line).
+
+#### Example compare transcript
+
+The repo includes a saved CLI transcript under **`example-experiments/`** (from comparing two **`NUM_STEPS=1000`** runs that differ only in **`N_HEAD`** — the **4-head** vs **1-head** pair echoed in [Run experiments examples](#run-experiments-examples)). Use it as a fixed reference when explaining `compare_run_reports.py` without regenerating `outputs/` locally.
 
 ### HTML comparison (multi-run)
 

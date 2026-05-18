@@ -1,0 +1,47 @@
+python microgpt_updated.py --n-head 1
+
+Num Docs: 32033
+Vocab Size: 27
+Num Params: 4192
+Step 1000 / 1000 | Loss 2.6063 | Avg-100 2.2778
+--- Inference (new, hallucinated names) ---
+Sample  1: keltis
+Sample  2: jeylion
+Sample  3: lana
+Sample  4: elynan
+Sample  5: ania
+Sample  6: lary
+Sample  7: kanya
+Sample  8: masa
+Sample  9: carlin
+Sample 10: kayl
+Sample 11: aran
+Sample 12: noren
+Sample 13: liran
+Sample 14: alerin
+Sample 15: earan
+Sample 16: lelie
+Sample 17: kana
+Sample 18: lara
+Sample 19: alela
+Sample 20: anyna
+
+============================================================
+SAMPLE QUALITY EVALUATION
+============================================================
+
+--- Character-level metrics ---
+Char distribution similarity: 0.7226
+Avg sample length: 4.9
+Length similarity: 0.8004
+
+--- Semantic quality (three-tier) ---
+Tier 1 (Real words):        8/20 (40.0%)
+  Examples: lana, ania, kanya
+Tier 2 (Plausible words):  12/20 (60.0%)
+  Avg plausibility: 0.93
+  Examples: keltis, jeylion, elynan
+Tier 3 (Nonsense words):    0/20 (0.0%)
+
+OVERALL QUALITY SCORE: 0.560
+============================================================

@@ -89,6 +89,7 @@ python microgpt_updated.py --num-steps 500 --temperature 0.7 --suite-index 1 --s
 
 ## Notes
 
+- **Checked-in compare demo**: **`example-experiments/`** holds a saved **`compare_run_reports.py`** transcript for the **H4 vs H1** @ **1000-step** pair (same setup as *Run experiments examples*). Useful when teaching the CLI without local **`outputs/`**. Full **`output_*.txt`** blobs are still ignored by **`.gitignore`** everywhere unless you **`git add -f`** or add an exception.
 - **Reuse**: `compute_sample_quality_metrics` + `format_sample_quality_console_lines` centralize what `microgpt_updated.py` prints and saves; semantic evaluation uses one pass over samples with cached corpus bigrams / average length. Parsed reports set `HEAD_DIM` to `N_EMBD // N_HEAD` in memory. **Compare / HTML** list `HEAD_DIM` **after** `N_EMBD` and `N_HEAD` (`cfg_keys_for_experiment_table` / `_CFG_DISPLAY_ORDER`) and label it via `experiment_cfg_calculated_caption`. Tier/quality table labels still use `n_head` × `head_dim` for a compact “geometry” readout.
 - **Tier overlap**: Tier 1 (real), Tier 2 (plausible among **non-real**), and Tier 3 (nonsense on **all** samples) are not mutually exclusive by construction; `distribution_sum` in `evaluate_semantic_quality` is a sanity hint only.
 - **Hypothesis testing (e.g. N_HEAD × NUM_STEPS)**: Compare `OVERALL_QUALITY_SCORE` and tier ratios across `outputs/output_*.txt` reports or the HTML summary (per-head width follows from `N_EMBD` and `N_HEAD`).

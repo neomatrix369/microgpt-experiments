@@ -1,0 +1,47 @@
+python microgpt_updated.py --n-head 4 
+
+Num Docs: 32033
+Vocab Size: 27
+Num Params: 4192
+Step 1000 / 1000 | Loss 2.6497 | Avg-100 2.2761
+--- Inference (new, hallucinated names) ---
+Sample  1: kamon
+Sample  2: ann
+Sample  3: karai
+Sample  4: jaire
+Sample  5: vialan
+Sample  6: karia
+Sample  7: yeran
+Sample  8: anna
+Sample  9: areli
+Sample 10: kaina
+Sample 11: konna
+Sample 12: keylen
+Sample 13: liole
+Sample 14: alerin
+Sample 15: earan
+Sample 16: lenne
+Sample 17: kana
+Sample 18: lara
+Sample 19: alela
+Sample 20: anton
+
+============================================================
+SAMPLE QUALITY EVALUATION
+============================================================
+
+--- Character-level metrics ---
+Char distribution similarity: 0.7153
+Avg sample length: 4.9
+Length similarity: 0.8004
+
+--- Semantic quality (three-tier) ---
+Tier 1 (Real words):       11/20 (55.0%)
+  Examples: kamon, ann, karai
+Tier 2 (Plausible words):   9/20 (45.0%)
+  Avg plausibility: 0.93
+  Examples: vialan, karia, yeran
+Tier 3 (Nonsense words):    0/20 (0.0%)
+
+OVERALL QUALITY SCORE: 0.583
+============================================================
