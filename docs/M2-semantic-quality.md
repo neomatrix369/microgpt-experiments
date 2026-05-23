@@ -123,19 +123,26 @@ After changing evaluation, re-run training. Add tests in **`tests/test_evaluatio
 
 ```mermaid
 flowchart TB
-  Train[microgpt_updated.train]
-  Gen[microgpt_updated.generate]
+  Entry[microgpt_updated.main]
+  Exp[mgpt.experiment.run_experiment]
+  Train[mgpt.experiment.train]
+  Gen[mgpt.experiment.generate]
   Eval[mgpt.evaluation.compute_sample_quality_metrics]
   Qual[mgpt.quality compute_overall + compare]
+  Timing[run_report.timing]
   Sweep[experiments/sweep.py]
   Report[run_report.build_run_report_lines]
   Disk[outputs/output_*.txt]
   HTML[experiments/report_generator.py]
   Cmp[compare_run_reports.py]
+  Entry --> Exp
+  Exp --> Train
   Train --> Gen
   Gen --> Eval
   Eval --> Qual
   Eval --> Report
+  Exp --> Timing
+  Timing --> Report
   Qual --> Sweep
   Report --> Disk
   Disk --> HTML
