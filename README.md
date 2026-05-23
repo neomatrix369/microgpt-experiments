@@ -376,6 +376,10 @@ The **[`example-experiments/`](./example-experiments/)** folder holds real artif
 | [`output_L1_E16_H1_B16_S1000_…152836.txt`](./example-experiments/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt) | Full run report — **1 head**, 1000 steps |
 | [`compare-output_…152649-and-…152836.txt`](./example-experiments/compare-output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649-and-output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt) | Saved **`compare_run_reports.py`** stdout for those two files |
 | [`comparison_report.html`](./example-experiments/comparison_report.html) | **`experiments/report_generator.py`** HTML for the same pair (open in a browser) |
+| [`sweep-1-minimal/sweep_summary.csv`](./example-experiments/sweep-1-minimal/sweep_summary.csv) | Ranked rows from a finished **`1_sweep-minimal.json`** grid (4 runs; includes timing columns) |
+| [`sweep-1-minimal/sweep_timing.txt`](./example-experiments/sweep-1-minimal/sweep_timing.txt) | Whole-grid wall clock for that sweep (~13 min) |
+
+Console head/tail excerpt for the same sweep: **[`docs/experiment-workflow.md` → Example: finished `1_sweep-minimal.json`](./docs/experiment-workflow.md#example-finished-1_sweep-minimaljson-run)**.
 
 **Run report** (start of the 4-head file; each report also embeds 1000-step loss CSV and a parameter glossary):
 
