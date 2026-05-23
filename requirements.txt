@@ -1,0 +1,4 @@
+# Train and generate: Python 3 only.
+# Tests: optional — pip install -r requirements.txt
+pytest>=8.0
+pytest-cov>=7.0

@@ -4,6 +4,8 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 
 **Repo entry:** [README.md](../README.md) · **Fastest run:** [QUICKSTART.md](../QUICKSTART.md)
 
+**Train and generate:** Python 3 only. **Tests:** optional — `pip install -r requirements.txt`.
+
 > **Who is this for?** Same personas as [README → Who is this for?](../README.md#who-is-this-for) — this page is the **doc map**; the README is the full reference.
 
 ---
@@ -45,6 +47,7 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 | Wall-clock in a saved report | `--- Run timing ---` block in `outputs/output_*.txt` |
 | Sweep timing summary | `outputs/sweeps/<order>-<name>/sweep_timing.txt` |
 | Browse demo results | [example-experiments/comparison_report.html](../example-experiments/comparison_report.html) |
+| Run tests (optional) | `pip install -r requirements.txt` then `python -m pytest` |
 | All CLI flags | `python microgpt_updated.py --help` |
 
 **Compare tools:** terminal diff = `compare_run_reports.py` (timing shown; not part of exit code) · browser table = `experiments/report_generator.py` · grid search = `experiments/sweep.py`

@@ -1,0 +1,12 @@
+[run]
+source =
+    mgpt
+    run_report
+    experiments
+omit =
+    */tests/*
+
+[report]
+skip_empty = True
+precision = 0
+show_missing = False

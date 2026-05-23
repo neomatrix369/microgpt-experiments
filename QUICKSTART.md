@@ -1,6 +1,6 @@
 # Quickstart
 
-Get microgpt running in a few minutes. **No pip install** — Python 3 and the standard library only.
+Get microgpt running in a few minutes. **Train and generate:** Python 3 only. **Tests:** optional — `pip install -r requirements.txt`.
 
 > Once this works, head to [README.md](README.md) for architecture, experiments, and run reports — or pick a path from [Who is this for?](README.md#who-is-this-for) / [docs/README.md](docs/README.md).
 
@@ -12,7 +12,7 @@ Get microgpt running in a few minutes. **No pip install** — Python 3 and the s
 python --version   # Python 3.x required
 ```
 
-Optional tests later: `pip install pytest` (not required to train or generate).
+**Tests** (optional): `pip install -r requirements.txt` then `python -m pytest`.
 
 ---
 
