@@ -34,7 +34,7 @@ python microgpt_updated.py --help
 python microgpt.py
 ```
 
-**How to use microgpt_updated.py** (baseline, `--help`, `--input`, source-only vs CLI, sweep reproduction, report tools): **`README.md` → [How to use microgpt_updated.py](README.md#how-to-use-microgpt_updatedpy)**.
+**How to use microgpt_updated.py** (baseline, `--help`, `--input`, source-only vs CLI, sweep reproduction, report tools): **`README.md` → [How to use microgpt_updated.py](README.md#how-to-use-microgpt_updatedpy)**. **Concepts for newcomers:** **`docs/learn-before-you-code.md`**. **Autograd:** **`docs/autograd-deep-dive.md`** → `mgpt/value.py`.
 
 **Run experiments examples** (distinct `N_HEAD` × `NUM_STEPS` from saved `output_*.txt`): **`README.md` → [Run experiments examples](README.md#run-experiments-examples)** and **`docs/M2-semantic-quality.md`** (Commands → *Run experiments examples*).
 
@@ -82,6 +82,9 @@ Run **`pytest`** from the repo root: `python -m pytest tests/ -q` (modules cover
 ## Git and docs
 
 - **`README.md`**: User-facing overview, architecture diagram, configuration tables, and pointers to this file.
+- **`docs/learn-before-you-code.md`**: Beginner-friendly concepts and examples—read before diving into code.
+- **`docs/autograd-deep-dive.md`**: Autograd learning guide (`Value`, graph, `backward()`, worked examples, diagrams); read before `mgpt/value.py`.
+- **`docs/M2-semantic-quality.md`**: Sample quality / semantic tier metrics (human-readable + implementation notes).
 - **`CLAUDE.md`** (this file): project context for Claude Code and compatible assistants—read it when onboarding or before substantive edits.
 - **`AGENTS.md`**: short pointer for agent harnesses; it defers to `CLAUDE.md` for full detail.
 

@@ -1,10 +1,27 @@
 # microGPT
 
-A **minimal, dependency-free** implementation of a **character-level GPT** in pure Python: scalar autograd (`Value`), a compact transformer (token and position embeddings, multi-head causal self-attention with a KV cache, RMSNorm, MLP, language-model head), **Adam** with bias correction, and sampling-based generation. It is aimed at **learning** how transformers and autograd work—not at training large models efficiently.
+Train a tiny **character-level GPT** in pure Python—no PyTorch, no NumPy, only the standard library. The goal is **understanding**: you can read the autograd (`Value`), the transformer forward pass, Adam, and sampling in one sitting.
 
-The design follows the [microGPT / makemore](https://github.com/karpathy/makemore) style and [Andrej Karpathy’s microGPT write-up](https://karpathy.github.io/2026/02/12/microgpt/).
+**In plain English:** the model learns to predict the **next letter** in each line of a text file (by default, first names). After training, it **rolls weighted dice** to write new lines that resemble the file. Training is **slow on purpose** (every operation is a Python scalar with a visible gradient).
 
-**There is no `requirements.txt` or `pyproject.toml` on purpose:** only the Python 3 standard library.
+Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and [Karpathy’s microGPT write-up](https://karpathy.github.io/2026/02/12/microgpt/).
+
+**There is no `requirements.txt` or `pyproject.toml` on purpose:** only Python 3.
+
+---
+
+## Start here (new to the project?)
+
+| If you want to… | Read this first |
+|-----------------|-----------------|
+| **Learn the ideas** before opening code | **[`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md)** — tokens, loss, temperature, attention, sample quality, with small examples |
+| **Understand autograd** | **[`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md)** — `Value`, computation graph, `backward()`, diagrams and hand-traced examples |
+| **Run something** | [Quick start](#quick-start) below, then skim a checked-in report in [`example-experiments/`](./example-experiments/) |
+| **Change settings or compare runs** | [Configuration](#configuration), [Run reports](#run-reports) |
+| **Understand generated-name scoring** | [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) |
+| **Edit code or add features** | [`CLAUDE.md`](./CLAUDE.md) (maintainer / assistant conventions) |
+
+Suggested path: **learn guide → quick start → one example report → `microgpt.py` or `microgpt_updated.py`**.
 
 ---
 
@@ -38,11 +55,17 @@ python microgpt_updated.py --help   # lists all flags
 python microgpt.py
 ```
 
-**What you should see:** dataset size, vocabulary size, parameter count, training loss printed per step (updating on one line), then a short banner and **20** sampled lines (default task: hallucinated names). After that, **`microgpt_updated.py`** prints a **sample quality** summary (character-level similarity to the training corpus plus a three-tier semantic heuristic: real / plausible / nonsense).
+**What you should see:**
 
-**`microgpt_updated.py` only:** it also saves a **run report** under **`outputs/`** (created if missing; see [Run reports](#run-reports)). Filenames use stem tokens `L`/`E`/`H`/`B`/… (no separate token for per-head width; that follows from `N_EMBD` and `N_HEAD`). The compact `microgpt.py` does not write this file. CLI flags only exist on the refactored entry; `microgpt.py` remains edit-the-constants only.
+1. Dataset size, vocabulary size, parameter count.
+2. Training **loss** per step (one updating line)—loss should generally **decrease** over time.
+3. **20 generated lines** (default: name-like strings), then a **sample quality** block (how name-like vs the training file).
+
+**`microgpt_updated.py` only** also writes a **run report** to **`outputs/`** (see [Run reports](#run-reports)). The compact `microgpt.py` prints to the terminal only. CLI flags exist only on the refactored entry.
 
 If `input.txt` is missing, both scripts download the classic names list from the makemore repository.
+
+**No time to train?** Open [`example-experiments/output_L1_E16_H4_B16_S1000_….txt`](./example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt) to see what a finished report looks like.
 
 ### How to use microgpt_updated.py
 
@@ -104,7 +127,17 @@ python -m pytest tests/ -q
 | **Format** | Plain text; empty lines are skipped. Characters not present in the file never appear in the vocabulary. |
 | **Fallback** | Scripts can fetch names from `https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt` if `input.txt` does not exist. |
 
-Replace `input.txt` with your own line-oriented corpus to change what the model learns (keep lines short enough to fit `BLOCK_SIZE` / `block_size`, or increase context in the code).
+**Example file** (three names → three training lines):
+
+```text
+emma
+liam
+noah
+```
+
+Each line is wrapped with a **BOS** (beginning-of-sequence) token during training so the model learns where a line starts and stops. See [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) for a walkthrough.
+
+Replace `input.txt` with your own line-oriented corpus to change what the model learns. Keep lines shorter than **`BLOCK_SIZE`** (default 16, including BOS), or increase `BLOCK_SIZE` in code / `--block-size` on the CLI.
 
 ---
 
@@ -124,6 +157,9 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`outputs/`** | Default directory for run reports (`output_*.txt`) and `comparison_report.html`; gitignored. Created automatically on write. |
 | **`output_*.txt`** | Optional: written by `microgpt_updated.py` under **`outputs/`** by default; not produced by `microgpt.py`. Names encode hyperparameters and a local `_YYYYMMDD_HHMMSS` suffix (see [Run reports](#run-reports)). |
 | **`README.md`** | This overview (architecture, config, run reports). |
+| **`docs/learn-before-you-code.md`** | **Start here for concepts** — plain-language primer with examples before reading code. |
+| **`docs/autograd-deep-dive.md`** | **Autograd learning guide** — `Value`, graph, `backward()`, worked examples, diagrams; read before `mgpt/value.py`. |
+| **`docs/M2-semantic-quality.md`** | How generated samples are scored (tiers, metrics, commands). |
 | **`CLAUDE.md`** | Maintainer / assistant context: conventions, internals, which file to edit. |
 | **`AGENTS.md`** | Short pointer to `README.md` / `CLAUDE.md` for agent harnesses. |
 | **`example-experiments/`** | Checked-in **sample run reports**, a **`compare_run_reports.py`** transcript, and an **HTML comparison** for the **4-head vs 1-head @ 1000 steps** pair — see [Example artifacts (preview)](#example-artifacts-preview). Your own runs still land in gitignored **`outputs/`**. |
@@ -131,6 +167,8 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 ---
 
 ## Architecture (high level)
+
+**Story in one breath:** text lines → character tokens → embeddings + positions → transformer blocks (normalize → attend → MLP) → logits per next character → cross-entropy loss → backward → Adam. After training, sample from the same stack starting at BOS.
 
 ```mermaid
 flowchart TB
@@ -184,27 +222,47 @@ flowchart LR
   T --> CON
 ```
 
-**Block details (GPT-2–like with deliberate simplifications):**
+### Block details (GPT-2–like with deliberate simplifications)
 
-- **Tokenisation**: Character-level; vocabulary = unique characters in the corpus plus a **BOS** (beginning-of-sequence) id. Each line is wrapped with BOS at both ends so the model learns to start and stop.
-- **Embedding**: Learned **token** (`wte`) and **position** (`wpe`) tables added together, then **RMSNorm** (not LayerNorm).
-- **Attention**: Multi-head causal self-attention; **scaled dot-product** attention; keys and values are **appended to a per-layer KV cache** as the sequence is processed (same structure used in training forward and generation).
-- **Residuals**: Pre-norm style blocks (normalize → sublayer → add residual) for attention and MLP.
-- **MLP**: Expand (typically `4 * n_embd`) → **ReLU** → project back (Karpathy notes **GELU** in full GPT-2; this code uses ReLU for simplicity).
-- **Output**: Linear `lm_head` maps the final hidden state to logits over the vocabulary.
-- **No biases** on linear layers (as in the reference write-up).
+| Piece | What it does | Plain-English note |
+|-------|----------------|---------------------|
+| **Tokenisation** | One token per character + **BOS** | Vocabulary = every character seen in your file, plus BOS. |
+| **Embeddings** | `wte` + `wpe`, then **RMSNorm** | “Which letter” vector + “which position” vector, rescaled for stability. |
+| **Attention** | Multi-head, **causal**, with **KV cache** | Each new letter may look at earlier letters only; cache avoids recomputing past keys/values when generating. |
+| **Residuals** | Pre-norm: norm → sublayer → add input | Standard “don’t lose the old signal” wiring. |
+| **MLP** | Widen → **ReLU** → project (full GPT-2 often uses GELU) | Extra non-linear capacity after attention. |
+| **LM head** | Linear map to vocabulary logits | Scores for “what letter comes next?” |
+| **Biases** | None on linear layers | Matches the reference write-up. |
 
-**Autograd:** Each scalar is a `Value` with children and local gradients; `loss.backward()` builds a topological order and accumulates gradients. This mirrors the idea behind `tensor.backward()` in frameworks, but at scalar granularity.
+**Autograd (`Value`):** every number remembers how it was built; `loss.backward()` walks the graph and fills `.grad` via the chain rule—same *idea* as PyTorch, but one scalar at a time so you can read it. Full learning guide with diagrams and worked examples: [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md). Source: [`mgpt/value.py`](./mgpt/value.py).
 
-**Optimisation:** Adam (`beta1`, `beta2`, `eps`) with **bias-corrected** moments and **linear learning rate decay** to zero over the training run.
+**Optimisation:** Adam with bias-corrected moments and **learning rate decaying linearly to zero** over the run.
 
-**Inference:** Start from BOS; sample the next character from the softmax distribution; **temperature** scales logits before softmax (`logits / temperature`). Stop at BOS again or at max length (`BLOCK_SIZE` / `block_size`).
+**Inference:** start at BOS → softmax sample → append letter → repeat until BOS or **`BLOCK_SIZE`**. **Temperature** divides logits before softmax: lower = safer/more typical samples; higher = wilder. Example: `--temperature 0.8`.
+
+Concept primer with worked examples: [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md).
 
 ---
 
 ## Run reports
 
-The refactored script saves a text summary of a training run: a short **narrative** section (`--- What this run is ---`) that explains the input file, the training setup, and how to read the final loss and generated samples; an optional **experiment suite** block for variant sweeps; a flat **config** listing; the last-step **loss**; optional **sample quality** (`--- Sample quality (character-level) ---`: `CHAR_DIST_SIMILARITY`, average sample length, length similarity); optional **semantic quality** (`--- Semantic quality (three-tier) ---`: tier counts/ratios, overall score, commented example lines); optional **`--- Loss history (CSV: step,loss) ---`** (one row per training step, for plotting or diff tools); **inference samples**; and a **parameter glossary** (including how the output filename is encoded). **Architecture in the config block:** **`N_EMBD`**, then **`N_HEAD`**, then **`HEAD_DIM=`** (`N_EMBD // N_HEAD`) and a **`#`** line — same order in **`compare_run_reports.py`** and **`experiments/report_generator.py`** (`run_report.parse._CFG_DISPLAY_ORDER`). Parsers normalize `HEAD_DIM` in memory (`run_report.parse.parse_run_report_text`).
+After **`microgpt_updated.py`** finishes, it writes a text file under **`outputs/`** (by default). Think of it as a **lab notebook page** for that run.
+
+**Sections (top to bottom):**
+
+| Section | What it tells you |
+|---------|-------------------|
+| `--- What this run is ---` | Plain-language summary: input file, architecture, steps, how to read loss and samples |
+| `--- Experiment suite ---` | Optional labels when you sweep variants (`--suite-index`, etc.) |
+| `--- Config (this run) ---` | Every hyperparameter; **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** (`HEAD_DIM` is always `N_EMBD // N_HEAD`) |
+| Final loss | Last training-step loss (lower = better fit on training objective) |
+| Sample quality | Character mix and length vs training data |
+| Semantic quality | Three-tier heuristic: real / plausible / nonsense names ([details](./docs/M2-semantic-quality.md)) |
+| Loss history CSV | One `step,loss` row per training step—for ASCII plots in compare tools |
+| Inference samples | The 20 generated lines |
+| Parameter glossary | What each config key and filename token means |
+
+**Technical note:** compare/HTML tools use the same config key order (`run_report.parse._CFG_DISPLAY_ORDER`); parsers derive `HEAD_DIM` in memory.
 
 - **Default path:** **`<microgpt repo>/outputs/`** + filename built from hyperparameters, e.g. `outputs/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The folder is `run_reports_dir(repo_root)` in `run_report.paths` (i.e. `repo_root / DEFAULT_RUN_REPORT_DIR`), where **repo root** is the directory containing `microgpt_updated.py`. That matches `experiments/report_generator.py` and `annotate_run_reports.py`, so tools find the same files even if your shell cwd is elsewhere. Override with **`--output-dir`** on `microgpt_updated.py` (path is resolved from cwd). The stem encodes `L/E/H/B/S/T/seed` (per-head width is `N_EMBD//N_HEAD` and is not a separate filename token) plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built, so repeat runs with the same hyperparameters do not overwrite earlier reports. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py` and `format_run_output_path_for_params()` in `run_report/paths.py`.
 - **Past reports:** to add or refresh the narrative on files saved before the narrative existed, run from the repo root:
@@ -387,8 +445,16 @@ Same roles under lowercase names: `n_layer`, `n_embd`, `n_head`, `head_dim` (alw
 **Practical tips:**
 
 - Increase **`N_EMBD` / `n_embd`** or **`N_LAYER` / `n_layer`** only if you accept much slower training.
-- **`BLOCK_SIZE` / `block_size`** must be at least the longest sequence you need (including BOS tokens on both sides).
+- **`BLOCK_SIZE` / `block_size`** must fit your longest line (including BOS on both ends).
 - **`TEMPERATURE` / `temperature`**: lower → sharper / more “typical” samples; higher → more diverse.
+
+**Example — compare head counts without editing source:**
+
+```bash
+python microgpt_updated.py --n-head 4 --suite-index 1 --suite-total 2 --suite-note "head-count sweep"
+python microgpt_updated.py --n-head 1 --suite-index 2 --suite-total 2 --suite-note "head-count sweep"
+python compare_run_reports.py outputs/output_….txt outputs/output_….txt
+```
 
 ---
 
@@ -408,6 +474,15 @@ For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`]
 ---
 
 ## Further reading
+
+**In this repo**
+
+- [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) — concepts and examples before diving into code
+- [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) — autograd: `Value`, graph, backward, worked examples
+- [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) — how generated names are scored
+- [`CLAUDE.md`](./CLAUDE.md) — file layout and conventions for contributors
+
+**External**
 
 - [microGPT — fully deterministic backpropagation through a GPT-2 forward pass](https://karpathy.github.io/2026/02/12/microgpt/) (blog post)
 - [karpathy/makemore](https://github.com/karpathy/makemore) (related character-level models and datasets)
