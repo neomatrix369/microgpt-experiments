@@ -1,4 +1,4 @@
-# microGPT
+# microGPT Experiments
 
 Train a tiny **character-level GPT** in pure Python—no PyTorch, no NumPy, only the standard library. The goal is **understanding**: you can read the autograd (`Value`), the transformer forward pass, Adam, and sampling in one sitting.
 
