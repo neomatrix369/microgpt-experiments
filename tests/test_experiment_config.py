@@ -15,6 +15,14 @@ class TestRunConfig(unittest.TestCase):
         with self.assertRaises(ValueError):
             cfg.validate()
 
+    def test_validate_rejects_invalid_adam_params(self) -> None:
+        with self.assertRaises(ValueError):
+            RunConfig(beta1=0.0).validate()
+        with self.assertRaises(ValueError):
+            RunConfig(beta2=1.0).validate()
+        with self.assertRaises(ValueError):
+            RunConfig(eps_adam=0.0).validate()
+
     def test_validate_accepts_default(self) -> None:
         RunConfig().validate()
 

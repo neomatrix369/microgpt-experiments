@@ -25,6 +25,11 @@ def load_dataset(*, input_path: str, names_url: str) -> list[str]:
     with open(input_path) as f:
         docs = [line.strip() for line in f if line.strip()]
 
+    if not docs:
+        raise ValueError(
+            f"Dataset is empty after stripping blank lines: {input_path!r}"
+        )
+
     random.shuffle(docs)
     print(f"Num Docs: {len(docs)}")
     return docs
@@ -54,5 +59,18 @@ def build_tokeniser(docs: list[str]) -> Tokeniser:
 
     # 26 lowercase a-z + 1 BOS = 27
     vocab_size = len(uchars) + 1
+    if not uchars:
+        raise ValueError("No characters in vocabulary — dataset produced an empty charset")
     print(f"Vocab Size: {vocab_size}")
     return Tokeniser(uchars, bos, vocab_size)
+
+
+def validate_doc_chars(docs: list[str], tok: Tokeniser) -> None:
+    """Raise ValueError if any document contains a character outside the vocabulary."""
+    allowed = set(tok.uchars)
+    for doc_idx, doc in enumerate(docs):
+        for ch in doc:
+            if ch not in allowed:
+                raise ValueError(
+                    f"Document {doc_idx} contains out-of-vocabulary character {ch!r}: {doc!r}"
+                )

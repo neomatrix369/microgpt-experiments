@@ -33,9 +33,18 @@ class TestSweepGrid(unittest.TestCase):
 
     def test_filter_drops_invalid_head_split(self) -> None:
         combos = expand_grid({"n_embd": 16}, {"n_head": [3, 4]})
-        valid = filter_valid_combos(combos)
+        valid, dropped = filter_valid_combos(combos)
         self.assertEqual(len(valid), 1)
         self.assertEqual(valid[0].n_head, 4)
+        self.assertEqual(len(dropped), 1)
+
+    def test_format_dropped_combos_summary(self) -> None:
+        from experiments.sweep_grid import format_dropped_combos_summary
+
+        combos = expand_grid({"n_embd": 16}, {"n_head": [3, 4]})
+        _, dropped = filter_valid_combos(combos)
+        lines = format_dropped_combos_summary(dropped)
+        self.assertTrue(any("Filtered 1" in line for line in lines))
 
     def test_baseline_delta(self) -> None:
         baseline = BaselineMetrics(
@@ -59,7 +68,7 @@ class TestSweepGrid(unittest.TestCase):
         sweep = load_sweep_config(path)
         self.assertEqual(sweep.name, "minimal")
         self.assertEqual(str(sweep.output_dir).endswith("outputs/sweeps/1-minimal"), True)
-        configs = planned_run_configs(sweep)
+        configs, _ = planned_run_configs(sweep)
         self.assertEqual(len(configs), 4)
         self.assertEqual(configs[0].suite_index, 1)
         self.assertEqual(configs[0].suite_total, 4)
@@ -144,6 +153,39 @@ class TestSweepGrid(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             self.assertIn("started_utc", text)
             self.assertIn("2026-05-23T22:30:45.123456+00:00", text)
+
+    def test_summary_csv_round_trip(self) -> None:
+        from experiments.sweep import SweepRow, read_summary_csv, write_summary_csv
+        from mgpt.experiment import RunConfig
+
+        row = SweepRow(
+            suite_index=1,
+            config=RunConfig(n_head=1, num_steps=100),
+            report_path="output_test.txt",
+            final_loss=2.5,
+            semantic={
+                "overall_quality_score": 0.5,
+                "tier1_real_ratio": 0.5,
+                "tier2_plausible_ratio": 0.5,
+                "tier3_nonsense_ratio": 0.0,
+            },
+            deltas={
+                "overall_quality_score": 0.0,
+                "tier1_real_ratio": 0.0,
+                "tier2_plausible_ratio": 0.0,
+                "tier3_nonsense_ratio": 0.0,
+            },
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sweep_summary.csv"
+            write_summary_csv([row], path)
+            loaded = read_summary_csv(path)
+            self.assertEqual(len(loaded), 1)
+            self.assertEqual(loaded[0].config.n_head, 1)
+            self.assertAlmostEqual(loaded[0].final_loss, 2.5)
+            self.assertAlmostEqual(
+                float(loaded[0].semantic["overall_quality_score"]), 0.5
+            )
 
     def test_baseline_report_loading(self) -> None:
         examples = list((_REPO / "example-experiments").glob("output_*.txt"))

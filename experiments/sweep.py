@@ -38,6 +38,7 @@ from run_report.timing import (
 from experiments.sweep_grid import (
     SweepConfig,
     format_config_catalog,
+    format_dropped_combos_summary,
     format_dry_run_table,
     load_sweep_config,
     planned_run_configs,
@@ -197,14 +198,16 @@ def read_summary_csv(path: Path) -> list[SweepRow]:
     return rows
 
 
-def _rows_from_output_dir(sweep: SweepConfig) -> list[SweepRow]:
+def _rows_from_output_dir(sweep: SweepConfig) -> tuple[list[SweepRow], list[str]]:
     """Rebuild summary rows by parsing reports in the sweep output directory."""
     rows: list[SweepRow] = []
+    skipped: list[str] = []
     reports = sorted(sweep.output_dir.glob("output_*.txt"))
     for path in reports:
         parsed = parse_run_report_text(path.read_text(encoding="utf-8"), report_filename=path.name)
         sem = parsed.semantic_quality
         if sem is None:
+            skipped.append(path.name)
             continue
         cfg_raw = parsed.config
         cfg = RunConfig(
@@ -229,7 +232,7 @@ def _rows_from_output_dir(sweep: SweepConfig) -> list[SweepRow]:
                 timing=parsed.run_timing,
             )
         )
-    return rows
+    return rows, skipped
 
 
 def print_ranked_table(rows: list[SweepRow], baseline: BaselineMetrics) -> None:
@@ -274,10 +277,10 @@ def print_ranked_table(rows: list[SweepRow], baseline: BaselineMetrics) -> None:
     )
 
 
-def maybe_generate_html(sweep: SweepConfig) -> None:
+def maybe_generate_html(sweep: SweepConfig) -> int:
     reports = sorted(sweep.output_dir.glob("output_*.txt"))
     if len(reports) < 1:
-        return
+        return 0
     out_html = sweep.output_dir / "comparison_report.html"
     cmd = [
         sys.executable,
@@ -286,9 +289,15 @@ def maybe_generate_html(sweep: SweepConfig) -> None:
         "-o",
         str(out_html),
     ]
-    subprocess.run(cmd, check=False, cwd=_REPO_ROOT)
+    result = subprocess.run(cmd, cwd=_REPO_ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        print("HTML generation failed:", file=sys.stderr)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
+        return result.returncode
     if out_html.is_file():
         print(f"\nHTML comparison: {out_html.resolve()}")
+    return 0
 
 
 def _print_sweep_timing_summary(output_dir: Path) -> None:
@@ -310,11 +319,14 @@ def run_sweep(
     summarize_only: bool = False,
     max_runs: int | None = None,
     html: bool = False,
+    strict: bool = False,
 ) -> int:
-    configs = planned_run_configs(sweep, max_runs=max_runs)
+    configs, dropped = planned_run_configs(sweep, max_runs=max_runs, strict=strict)
     print(f"Sweep: {sweep.name}")
     print(f"Output: {sweep.output_dir}")
     print(f"Valid runs: {len(configs)}")
+    for line in format_dropped_combos_summary(dropped):
+        print(line)
     print(
         f"Baseline {sweep.baseline.format_summary()}"
     )
@@ -330,12 +342,20 @@ def run_sweep(
 
     if summarize_only:
         rows = read_summary_csv(summary_path)
+        skipped: list[str] = []
         if not rows:
-            rows = _rows_from_output_dir(sweep)
+            rows, skipped = _rows_from_output_dir(sweep)
+        if skipped:
+            print(
+                f"Skipped {len(skipped)} report(s) missing semantic quality: "
+                + ", ".join(skipped)
+            )
         _print_sweep_timing_summary(sweep.output_dir)
         print_ranked_table(rows, sweep.baseline)
         if html:
-            maybe_generate_html(sweep)
+            code = maybe_generate_html(sweep)
+            if code != 0:
+                return code
         return 0 if rows else 1
 
     sweep.output_dir.mkdir(parents=True, exist_ok=True)
@@ -380,7 +400,9 @@ def run_sweep(
     _print_sweep_timing_summary(sweep.output_dir)
     print_ranked_table(rows, sweep.baseline)
     if html:
-        maybe_generate_html(sweep)
+        code = maybe_generate_html(sweep)
+        if code != 0:
+            return code
     return 0
 
 
@@ -425,6 +447,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="After sweep, build comparison_report.html via report_generator.py",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit with error if any grid combination is invalid after filtering",
+    )
     args = parser.parse_args(argv)
     if args.list_configs:
         for line in format_config_catalog():
@@ -440,6 +467,7 @@ def main(argv: list[str] | None = None) -> int:
             summarize_only=args.summarize_only,
             max_runs=args.max_runs,
             html=args.html,
+            strict=args.strict,
         )
     except (ValueError, OSError, KeyError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

@@ -139,6 +139,29 @@ class TestMetricsAndCrossParse(unittest.TestCase):
         self.assertIn(f"RMSE={expect_rmse:.4f}", metrics)
         self.assertIn(f"mean|Δ|={expect_mae:.4f}", metrics)
 
+
+class TestFixtureReport(unittest.TestCase):
+    _FIXTURE = Path(__file__).resolve().parent / "fixtures" / "minimal_report_with_loss.txt"
+
+    def test_given_fixture_report_when_parsed_then_loss_history_present(self) -> None:
+        text = self._FIXTURE.read_text(encoding="utf-8")
+        parsed = parse_run_report_text(text)
+        self.assertIsNotNone(parsed.loss_history)
+        hist = parsed.loss_history
+        assert hist is not None
+        self.assertEqual(len(hist), 5)
+        self.assertAlmostEqual(parsed.final_loss, 2.5)
+
+    def test_given_fixture_loss_history_when_binned_then_end_lower_than_start(self) -> None:
+        text = self._FIXTURE.read_text(encoding="utf-8")
+        parsed = parse_run_report_text(text)
+        hist = parsed.loss_history
+        assert hist is not None
+        b = bin_mean(hist, 5)
+        self.assertLess(b[-1], b[0])
+
+
+class TestRealReportIfPresent(unittest.TestCase):
     def test_real_report_if_present(self) -> None:
         repo = Path(__file__).resolve().parent.parent
         path = next(

@@ -7,7 +7,7 @@ from dataclasses import dataclass, fields, replace
 from pathlib import Path
 from typing import Any
 
-from mgpt.data import build_tokeniser, load_dataset
+from mgpt.data import build_tokeniser, load_dataset, validate_doc_chars
 from mgpt.evaluation import (
     compute_sample_quality_metrics,
     format_sample_quality_console_lines,
@@ -28,6 +28,10 @@ from run_report.timing import (
 DEFAULT_NAMES_URL = (
     "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
 )
+
+DEFAULT_NUM_SAMPLES = 20
+LOSS_AVG_WINDOW = 100
+MLP_EXPANSION_FACTOR = 4
 
 # Keys that must never appear in a sweep grid (derived or non-hyperparameter).
 FORBIDDEN_GRID_KEYS = frozenset({"head_dim", "HEAD_DIM"})
@@ -87,6 +91,12 @@ class RunConfig:
             raise ValueError("temperature must be > 0")
         if self.learning_rate <= 0:
             raise ValueError("learning_rate must be > 0")
+        if not 0.0 < self.beta1 < 1.0:
+            raise ValueError("beta1 must be in (0, 1)")
+        if not 0.0 < self.beta2 < 1.0:
+            raise ValueError("beta2 must be in (0, 1)")
+        if self.eps_adam <= 0:
+            raise ValueError("eps_adam must be > 0")
 
     @classmethod
     def from_mapping(
@@ -208,6 +218,7 @@ def train(
 ) -> tuple[StateDict, float, list[float]]:
     """Train the GPT model on the dataset."""
     config.validate()
+    validate_doc_chars(docs, tok)
     n_layer = config.n_layer
     n_embd = config.n_embd
     n_head = config.n_head
@@ -229,8 +240,8 @@ def train(
         state_dict[f"layer{i}.attn_wk"] = make_matrix(n_embd, nin=n_embd)
         state_dict[f"layer{i}.attn_wv"] = make_matrix(n_embd, nin=n_embd)
         state_dict[f"layer{i}.attn_wo"] = make_matrix(n_embd, nin=n_embd)
-        state_dict[f"layer{i}.mlp_fc1"] = make_matrix(4 * n_embd, nin=n_embd)
-        state_dict[f"layer{i}.mlp_fc2"] = make_matrix(n_embd, nin=4 * n_embd)
+        state_dict[f"layer{i}.mlp_fc1"] = make_matrix(MLP_EXPANSION_FACTOR * n_embd, nin=n_embd)
+        state_dict[f"layer{i}.mlp_fc2"] = make_matrix(n_embd, nin=MLP_EXPANSION_FACTOR * n_embd)
 
     params = [p for mat in state_dict.values() for row in mat for p in row]
     print(f"Num Params: {len(params)}")
@@ -283,8 +294,8 @@ def train(
             completed=step + 1,
             total=num_steps,
         )
-        if step >= 100:
-            loss_avg_100 = sum(loss_history[-100:]) / 100
+        if step >= LOSS_AVG_WINDOW:
+            loss_avg_100 = sum(loss_history[-LOSS_AVG_WINDOW:]) / LOSS_AVG_WINDOW
             print_carriage_progress(
                 f"Step {step + 1:4d} / {num_steps:4d} | Loss {loss.data:.4f} | "
                 f"Avg-100 {loss_avg_100:.4f} | {progress}",
@@ -314,7 +325,7 @@ def generate(
     temperature = config.temperature
 
     samples: list[str] = []
-    for _sample_idx in range(20):
+    for _sample_idx in range(DEFAULT_NUM_SAMPLES):
         kv_keys: KVCache = [[] for _ in range(n_layer)]
         kv_values: KVCache = [[] for _ in range(n_layer)]
         token_id = tok.bos

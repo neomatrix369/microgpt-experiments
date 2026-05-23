@@ -35,6 +35,11 @@ DEFAULT_REFERENCE_BASELINE: dict[str, float] = {
     "tier3_nonsense_ratio": 0.0,
 }
 
+TIER1_WEIGHT = 1.0
+TIER2_WEIGHT = 0.7
+NON_NONSENSE_WEIGHT = 0.3
+OVERALL_SCORE_DIVISOR = 2.0
+
 
 def compute_overall_quality_score(
     tier1_real_ratio: float,
@@ -46,10 +51,10 @@ def compute_overall_quality_score(
     Weights: real x 1.0, plausible x 0.7, non-nonsense x 0.3, then / 2.
     """
     overall = (
-        tier1_real_ratio * 1.0
-        + tier2_plausible_ratio * 0.7
-        + (1.0 - tier3_nonsense_ratio) * 0.3
-    ) / 2.0
+        tier1_real_ratio * TIER1_WEIGHT
+        + tier2_plausible_ratio * TIER2_WEIGHT
+        + (1.0 - tier3_nonsense_ratio) * NON_NONSENSE_WEIGHT
+    ) / OVERALL_SCORE_DIVISOR
     return max(0.0, min(1.0, overall))
 
 

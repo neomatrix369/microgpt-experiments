@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Insert the same ``--- What this run is ---`` narrative that :func:`save_run_report`
-writes into **existing** ``output_*.txt`` files (past experiments).
+Insert the same ``--- What this run is ---`` narrative that
+:func:`run_report.builder.build_run_report_lines` writes into **existing**
+``output_*.txt`` files (past experiments), matching what
+:func:`mgpt.experiment.run_experiment` produces on new runs.
 
 Stdlib only; run from the repo root. With no arguments, scans ``outputs/output_*.txt``::
 
@@ -92,9 +94,14 @@ def main() -> None:
             "(pass explicit paths as arguments)."
         )
         sys.exit(0)
+    errors = 0
     for p in paths:
         status = annotate_file(p)
         print(f"{p.name}: {status}")
+        if status.startswith("err:"):
+            errors += 1
+    if errors:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

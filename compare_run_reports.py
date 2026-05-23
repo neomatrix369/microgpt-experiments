@@ -34,27 +34,14 @@ from pathlib import Path
 from run_report import (
     DERIVED_EXPERIMENT_CFG_KEYS,
     cfg_keys_for_experiment_table,
-    experiment_cfg_calculated_caption,
     loss_curve_comparison_lines,
     parse_run_report_text,
 )
-
-
-def _fmt_val(v: object) -> str:
-    if isinstance(v, float):
-        return f"{v:g}"
-    return str(v)
-
-
-def _config_print_label(key: str) -> str:
-    cap = experiment_cfg_calculated_caption(key)
-    return f"{key} ({cap})" if cap else key
-
-
-def _config_line(key: str, val: object) -> str:
-    cap = experiment_cfg_calculated_caption(key)
-    suffix = f"  — {cap}" if cap else ""
-    return f"{key}={_fmt_val(val)}{suffix}"
+from run_report.display import (
+    config_print_label,
+    format_cfg_value,
+    format_config_line,
+)
 
 
 def parse_run_report(
@@ -117,7 +104,7 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         if va != vb:
             exit_code = 1
             config_diff.append(
-                (k, _fmt_val(va) if va is not None else "—", _fmt_val(vb) if vb is not None else "—")
+                (k, format_cfg_value(va) if va is not None else "—", format_cfg_value(vb) if vb is not None else "—")
             )
         else:
             shared_keys.add(k)
@@ -130,13 +117,13 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         if shared_keys:
             print("--- Shared config (both runs) ---")
             for k in cfg_keys_for_experiment_table(shared_keys):
-                print(f"  {_config_line(k, cfg_a[k])}")
+                print(f"  {format_config_line(k, cfg_a[k])}")
             print()
         print("--- Config differences ---")
-        prefix_w = max(len(f"{_config_print_label(k)}:  ") for k, _, _ in config_diff)
+        prefix_w = max(len(f"{config_print_label(k)}:  ") for k, _, _ in config_diff)
         w_a = max(len(f"A={a}") for _, a, _ in config_diff)
         for k, a, b in config_diff:
-            label = _config_print_label(k)
+            label = config_print_label(k)
             pad = prefix_w - len(f"{label}:  ")
             left = f"A={a}".ljust(w_a)
             print(f"  {label}:  {' ' * pad}{left}  |  B={b}")
@@ -145,7 +132,7 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         print("--- Config (same both runs) ---")
         display_keys = cfg_keys_for_experiment_table(set(cfg_a))
         for k in display_keys:
-            print(f"  {_config_line(k, cfg_a[k])}")
+            print(f"  {format_config_line(k, cfg_a[k])}")
         print()
 
     if loss_a != loss_b:

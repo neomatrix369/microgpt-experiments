@@ -88,6 +88,30 @@ class TestSemanticTiers(unittest.TestCase):
             self.assertGreaterEqual(r["overall_quality_score"], 0.0)
             self.assertLessEqual(r["overall_quality_score"], 1.0)
 
+    def test_single_char_corpus_word_is_tier1_only(self) -> None:
+        corpus = ["m", "alice"]
+        r = evaluate_semantic_quality(["m"], corpus)
+        self.assertEqual(r["tier1_real_count"], 1)
+        self.assertEqual(r["tier3_nonsense_count"], 0)
+
+    def test_distribution_sum_at_most_one(self) -> None:
+        corpus = ["alice", "bob", "carl"]
+        samples = ["alice", "karia", "aaaa", "m", "zzxqwp"]
+        r = evaluate_semantic_quality(samples, corpus)
+        self.assertLessEqual(float(r["distribution_sum"]), 1.0 + 1e-9)
+        self.assertAlmostEqual(float(r["distribution_sum"]), 1.0, places=5)
+
+    def test_tier2_boundary_at_threshold(self) -> None:
+        corpus = ["alice", "emma", "olivia"]
+        # "karia" is plausible but not in corpus; score should land near tier2
+        r = evaluate_semantic_quality(["karia"], corpus, plausibility_threshold=0.6)
+        self.assertEqual(r["tier1_real_count"], 0)
+        self.assertGreaterEqual(int(r["tier2_plausible_count"]), 0)
+        # Very high threshold forces tier3
+        r_strict = evaluate_semantic_quality(["karia"], corpus, plausibility_threshold=0.99)
+        self.assertEqual(r_strict["tier2_plausible_count"], 0)
+        self.assertEqual(r_strict["tier3_nonsense_count"], 1)
+
 
 class TestComputeBundle(unittest.TestCase):
     def test_compute_matches_individual_evaluators(self) -> None:
@@ -212,6 +236,48 @@ Sample  1: test
         )
         p = parse_run_report_text("\n".join(lines))
         self.assertEqual(p.config.get("HEAD_DIM"), 4)
+
+    def test_loss_history_round_trip(self) -> None:
+        loss_history = [3.0, 2.8, 2.6, 2.4, 2.5]
+        lines = build_run_report_lines(
+            n_layer=1,
+            n_embd=16,
+            n_head=4,
+            block_size=16,
+            num_steps=5,
+            temperature=0.5,
+            seed=42,
+            learning_rate=0.01,
+            beta1=0.9,
+            beta2=0.99,
+            eps_adam=1e-8,
+            input_path="input.txt",
+            final_loss=2.5,
+            samples=["alice", "bob"],
+            loss_history=loss_history,
+        )
+        parsed = parse_run_report_text("\n".join(lines))
+        self.assertEqual(parsed.loss_history, loss_history)
+
+    def test_parse_raises_when_final_loss_missing(self) -> None:
+        text = """N_LAYER=1
+N_EMBD=16
+N_HEAD=4
+BLOCK_SIZE=16
+NUM_STEPS=1
+TEMPERATURE=0.5
+SEED=42
+LEARNING_RATE=0.01
+BETA1=0.9
+BETA2=0.99
+EPS_ADAM=1e-8
+INPUT_PATH=names.txt
+
+--- Inference samples ---
+Sample  1: test
+"""
+        with self.assertRaises(ValueError):
+            parse_run_report_text(text)
 
 
 if __name__ == "__main__":

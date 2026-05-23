@@ -66,17 +66,33 @@ def filter_valid_combos(
     combos: list[dict[str, Any]],
     *,
     defaults: RunConfig | None = None,
-) -> list[RunConfig]:
-    """Drop invalid hyperparameter combinations."""
+) -> tuple[list[RunConfig], list[tuple[dict[str, Any], str]]]:
+    """Return valid configs and dropped combos with rejection reasons."""
     valid: list[RunConfig] = []
+    dropped: list[tuple[dict[str, Any], str]] = []
     for combo in combos:
         try:
             cfg = RunConfig.from_mapping(combo, defaults=defaults)
             cfg.validate()
             valid.append(cfg)
-        except ValueError:
-            continue
-    return valid
+        except ValueError as exc:
+            dropped.append((combo, str(exc)))
+    return valid, dropped
+
+
+def format_dropped_combos_summary(
+    dropped: list[tuple[dict[str, Any], str]],
+) -> list[str]:
+    """Human-readable lines describing filtered grid combinations."""
+    if not dropped:
+        return []
+    lines = [f"Filtered {len(dropped)} invalid combination(s):"]
+    for combo, reason in dropped[:10]:
+        parts = ", ".join(f"{k}={v}" for k, v in sorted(combo.items()))
+        lines.append(f"  - {{{parts}}} — {reason}")
+    if len(dropped) > 10:
+        lines.append(f"  ... and {len(dropped) - 10} more")
+    return lines
 
 
 def _repo_root_from_config(config_path: Path) -> Path:
@@ -125,10 +141,15 @@ def planned_run_configs(
     *,
     defaults: RunConfig | None = None,
     max_runs: int | None = None,
-) -> list[RunConfig]:
+    strict: bool = False,
+) -> tuple[list[RunConfig], list[tuple[dict[str, Any], str]]]:
     """Expand grid, validate combos, apply suite labels."""
     combos = expand_grid(sweep.fixed, sweep.grid)
-    configs = filter_valid_combos(combos, defaults=defaults)
+    configs, dropped = filter_valid_combos(combos, defaults=defaults)
+    if strict and dropped:
+        raise ValueError(
+            f"{len(dropped)} invalid grid combination(s); see dry-run output for details"
+        )
     if max_runs is not None and len(configs) > max_runs:
         raise ValueError(
             f"grid expands to {len(configs)} valid runs; exceeds --max-runs {max_runs}"
@@ -140,7 +161,7 @@ def planned_run_configs(
         labeled.append(
             replace(cfg, suite_index=i, suite_total=total, suite_note=note)
         )
-    return labeled
+    return labeled, dropped
 
 
 def format_dry_run_table(configs: list[RunConfig]) -> list[str]:
@@ -190,7 +211,8 @@ def format_config_catalog(configs_dir: Path | None = None) -> list[str]:
         order = path.stem.split("_", 1)[0] if "_" in path.stem else "?"
         try:
             sweep = load_sweep_config(path)
-            n_runs = len(planned_run_configs(sweep))
+            configs, _ = planned_run_configs(sweep)
+            n_runs = len(configs)
             rows.append((order, path.name, sweep.name, str(n_runs)))
         except ValueError as exc:
             rows.append((order, path.name, f"(error: {exc})", None))
