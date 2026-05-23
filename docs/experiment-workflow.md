@@ -154,6 +154,61 @@ Run configs in order when learning the tool. Use **`--max-runs N`** on larger gr
 
 **What the sweep optimizes:** simple heuristic tier scores (not ground-truth name quality). Computation lives in **`mgpt/evaluation.py`**; the overall formula, baseline compare, and ranking key live in **`mgpt/quality.py`**. To plug in better metrics, extend those modules — see **[M2-semantic-quality.md → Extending quality scoring](./M2-semantic-quality.md#extending-quality-scoring-yourself)**.
 
+### Example: finished `1_sweep-minimal.json` run
+
+Real output from **`python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json`** (4 runs, ~13 minutes wall clock). Checked-in artifacts: [`example-experiments/sweep-1-minimal/`](../example-experiments/sweep-1-minimal/) (`sweep_summary.csv`, `sweep_timing.txt`).
+
+**Start** — sweep banner, baseline reference, first grid point:
+
+```text
+Sweep: minimal
+Output: outputs/sweeps/1-minimal
+Valid runs: 4
+Baseline OVERALL=0.5825 (T1=0.55 T2=0.45 T3=0.00)
+
+--- Run 1 / 4 --- (elapsed 0.0s | ETA —)
+Config: ['--n-head', '1']
+Num Docs: 32033
+Vocab Size: 27
+Num Params: 4192
+Step    1 / 1000 | Loss 3.3663 | elapsed 0.1s | ETA 1m 6s
+…
+```
+
+**During training** — in an interactive terminal, one carriage-return line updates in place (`Step … | Loss … | elapsed … | ETA …`; `Avg-100` appears after step 100). Redirecting stdout to a file (e.g. `> output.txt`) preserves every step on its own line because `\r` overwrites do not apply to a log file.
+
+**After each run** — inference samples, quality block, saved report path, delta vs baseline:
+
+```text
+OVERALL QUALITY SCORE: 0.552
+Saved run report to outputs/sweeps/1-minimal/output_L1_E16_H4_B16_S2000_T0p5_seed42_….txt
+Run wall clock: 4m 17s
+  OVERALL 0.5525 (-0.0300 vs baseline 0.5825) ✗
+  TIER1 0.3500 (-0.2000) | TIER2 0.6500 (+0.2000) | TIER3 0.0000 (+0.0000)
+Sweep progress: elapsed 12m 49s | ETA 0s
+```
+
+**End** — ranked table and artifact paths:
+
+```text
+========================================================================
+SWEEP RANKING (by overall_quality_score)
+========================================================================
+Rank  OVERALL   Δ base    SEC      N_HEAD  STEPS   report
+---------------------------------------------------------
+1     0.5825    +0.0000    130.1    4       1000    output_L1_E16_H4_B16_S1000_….txt
+2     0.5600    -0.0225    125.3    1       1000    output_L1_E16_H1_B16_S1000_….txt
+3     0.5525    -0.0300    256.5    4       2000    output_L1_E16_H4_B16_S2000_….txt
+4     0.5375    -0.0450    256.5    1       2000    output_L1_E16_H1_B16_S2000_….txt
+
+Best: (defaults)  (OVERALL 0.5825, +0.0000 vs baseline 0.5825)
+Summary CSV: outputs/sweeps/1-minimal/sweep_summary.csv
+Sweep timing: outputs/sweeps/1-minimal/sweep_timing.txt
+Sweep wall clock: 12m 49s
+```
+
+Takeaway for this grid: **H4 @ 1000 steps** wins on the heuristic score; doubling steps did not beat it. Each `output_*.txt` under the sweep folder includes **`--- Run timing ---`** (authoritative per-run wall clock).
+
 ---
 
 ## Run timing and progress
@@ -205,6 +260,8 @@ Open these checked-in artifacts from [`example-experiments/`](../example-experim
 | `output_L1_E16_H1_B16_S1000_….txt` | 1-head run report |
 | `compare-output_….txt` | Saved CLI diff |
 | `comparison_report.html` | Saved HTML comparison |
+| `sweep-1-minimal/sweep_summary.csv` | Finished **`1_sweep-minimal.json`** ranked CSV (4 runs) |
+| `sweep-1-minimal/sweep_timing.txt` | Whole-grid wall clock for that sweep |
 
 ```bash
 python compare_run_reports.py \

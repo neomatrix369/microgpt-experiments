@@ -16,7 +16,7 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 |---------|------------|------|
 | **Learner / student** | [learn-before-you-code.md](./learn-before-you-code.md) | [autograd-deep-dive.md](./autograd-deep-dive.md) → `mgpt/value.py` → `mgpt/experiment.py` |
 | **Workshop / playgroup attendee** | [QUICKSTART.md](../QUICKSTART.md) | [experiment-workflow.md](./experiment-workflow.md) → smoke sweep `0_sweep-smoke-test.json` |
-| **Curious explorer** (no training) | [example-experiments/](../example-experiments/) | Open `comparison_report.html` in a browser |
+| **Curious explorer** (no training) | [example-experiments/](../example-experiments/) | `comparison_report.html` · [sweep-1-minimal/](../example-experiments/sweep-1-minimal/) (finished grid CSV) |
 | **Experimenter** (sweeps & compare) | [experiment-workflow.md](./experiment-workflow.md) | [configs/README.md](../experiments/configs/README.md) · [M2-semantic-quality.md](./M2-semantic-quality.md) · [Run timing](./experiment-workflow.md#run-timing-and-progress) |
 | **Autograd-focused reader** | [autograd-deep-dive.md](./autograd-deep-dive.md) | `mgpt/value.py` → `ops.py` → `mgpt/experiment.py` `train()` |
 | **Contributor / extender** | [CLAUDE.md](../CLAUDE.md) | [README repository layout](../README.md#repository-layout) |
@@ -46,7 +46,7 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 | HTML table (2+ runs; timing columns when present) | `python experiments/report_generator.py` |
 | Wall-clock in a saved report | `--- Run timing ---` block in `outputs/output_*.txt` |
 | Sweep timing summary | `outputs/sweeps/<order>-<name>/sweep_timing.txt` |
-| Browse demo results | [example-experiments/comparison_report.html](../example-experiments/comparison_report.html) |
+| Browse demo results | [comparison_report.html](../example-experiments/comparison_report.html) · [sweep example](./experiment-workflow.md#example-finished-1_sweep-minimaljson-run) · [sweep-1-minimal/](../example-experiments/sweep-1-minimal/) |
 | Run tests (optional) | `pip install -r requirements.txt` then `python -m pytest` |
 | All CLI flags | `python microgpt_updated.py --help` |
 
@@ -77,7 +77,7 @@ QUICKSTART §5 → 0_sweep-smoke-test.json → 1_sweep-minimal.json → sweep_su
 ### Skim without running
 
 ```text
-example-experiments/output_….txt → comparison_report.html → README architecture section
+example-experiments/output_….txt → comparison_report.html → sweep-1-minimal/sweep_summary.csv → README architecture section
 ```
 
 ---
