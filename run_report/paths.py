@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
+
+from .timing import local_filename_timestamp
 
 # Subdirectory name (under the microgpt repository root) for ``output_*.txt`` run
 # reports and the default HTML comparison path. Created on write as needed.
@@ -36,11 +37,12 @@ def format_run_output_path_for_params(
 
     Example: ``output_L1_E16_H4_B16_S1000_T0p5_seed42_20260422_153045.txt``
     (temperature dots become ``p``; trailing ``YYYYMMDD_HHMMSS`` is local wall-clock
-    time when this function runs). Per-head width is N_EMBD//N_HEAD and is not encoded
-    separately in the filename.
+    time when this function runs, for filename uniqueness). Authoritative start/end
+    times are written in the ``--- Run timing ---`` report block (UTC + local offset).
+    Per-head width is ``N_EMBD // N_HEAD`` and is not encoded separately in the filename.
     """
     t_token = f"{temperature:g}".replace("-", "m").replace(".", "p")
-    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_ts = local_filename_timestamp()
     stem = (
         f"{prefix}_L{n_layer}_E{n_embd}_H{n_head}_B{block_size}"
         f"_S{num_steps}_T{t_token}_seed{seed}_{run_ts}"

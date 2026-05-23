@@ -63,6 +63,8 @@ def _row_from_parsed(path: Path, parsed: ParsedRunReport) -> dict[str, object]:
     if head_dim <= 0:
         n_embd = _cfg_int(cfg, "N_EMBD", 1)
         head_dim = n_embd // n_head if n_head else 0
+    timing = parsed.run_timing
+    hint = parsed.filename_timestamp_hint
     return {
         "filename": path.name,
         "path": path,
@@ -78,6 +80,12 @@ def _row_from_parsed(path: Path, parsed: ParsedRunReport) -> dict[str, object]:
         "tier3_ratio": _tier_ratio(sem, "tier3_nonsense_ratio"),
         "overall_quality": _tier_ratio(sem, "overall_quality_score"),
         "has_semantic": parsed.semantic_quality is not None,
+        "duration_seconds": timing.duration_seconds if timing else None,
+        "started_utc": timing.started_utc if timing else "",
+        "started_local": timing.started_local if timing else (hint or ""),
+        "ended_utc": timing.ended_utc if timing else "",
+        "ended_local": timing.ended_local if timing else (hint or ""),
+        "timezone": timing.timezone if timing else "",
     }
 
 
@@ -300,7 +308,7 @@ def generate_html_report(
     records: list[dict[str, object]] = []
     for path in sorted(output_files, key=lambda p: p.name):
         text = path.read_text(encoding="utf-8")
-        parsed = parse_run_report_text(text)
+        parsed = parse_run_report_text(text, report_filename=path.name)
         records.append(_row_from_parsed(path, parsed))
 
     modern = [r for r in records if r["has_semantic"]]
@@ -326,6 +334,12 @@ def generate_html_report(
         )
         sample0 = r["samples"][0] if r["samples"] else "N/A"
         cfg_label = f"{r['n_head']}×{r['head_dim']}"
+        duration = r.get("duration_seconds")
+        duration_cell = f"{float(duration):.1f}s" if isinstance(duration, (int, float)) else "—"
+        started_utc = str(r.get("started_utc") or "—")
+        started_local = str(r.get("started_local") or "—")
+        ended_utc = str(r.get("ended_utc") or "—")
+        ended_local = str(r.get("ended_local") or "—")
         rows_html.append(
             f"""            <tr>
                 <td>{html.escape(cfg_label)}</td>
@@ -334,6 +348,11 @@ def generate_html_report(
                 <td>{float(r['tier1_ratio']):.1%}</td>
                 <td>{float(r['tier2_ratio']):.1%}</td>
                 <td>{float(r['tier3_ratio']):.1%}</td>
+                <td class="metric">{html.escape(duration_cell)}</td>
+                <td class="fname">{html.escape(_short_label(started_utc, 24))}</td>
+                <td class="fname">{html.escape(_short_label(started_local, 24))}</td>
+                <td class="fname">{html.escape(_short_label(ended_utc, 24))}</td>
+                <td class="fname">{html.escape(_short_label(ended_local, 24))}</td>
                 <td class="samples">{html.escape(sample0)}</td>
                 <td class="fname">{html.escape(str(r['filename']))}</td>
             </tr>"""
@@ -342,7 +361,7 @@ def generate_html_report(
     if legacy:
         rows_html.append(
             f"""            <tr class="legacy-summary">
-                <td colspan="8">{_legacy_summary_line(legacy)}</td>
+                <td colspan="13">{_legacy_summary_line(legacy)}</td>
             </tr>"""
         )
 
@@ -441,6 +460,11 @@ def generate_html_report(
         <th>Real words</th>
         <th>Plausible</th>
         <th>Nonsense</th>
+        <th>Duration</th>
+        <th>Started (UTC)</th>
+        <th>Started (local)</th>
+        <th>Ended (UTC)</th>
+        <th>Ended (local)</th>
         <th>First sample</th>
         <th>File</th>
       </tr>

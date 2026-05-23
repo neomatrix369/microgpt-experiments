@@ -65,6 +65,41 @@ def parse_run_report(
     return p.config, p.final_loss, p.samples, p.loss_history
 
 
+def _print_timing_comparison(path_a: Path, path_b: Path, text_a: str, text_b: str) -> None:
+    parsed_a = parse_run_report_text(text_a, report_filename=path_a.name)
+    parsed_b = parse_run_report_text(text_b, report_filename=path_b.name)
+    ta = parsed_a.run_timing
+    tb = parsed_b.run_timing
+    ha = parsed_a.filename_timestamp_hint
+    hb = parsed_b.filename_timestamp_hint
+    if ta is None and tb is None and not ha and not hb:
+        return
+    print("--- Run timing ---")
+    if ta is None:
+        if ha:
+            print(f"  A: approximate end from filename: {ha}")
+        else:
+            print(f"  A: (no timing block — legacy report: {path_a.name})")
+    else:
+        print(f"  A started UTC:  {ta.started_utc}")
+        print(f"  A started local:{ta.started_local}")
+        print(f"  A ended UTC:    {ta.ended_utc}")
+        print(f"  A ended local:  {ta.ended_local}")
+        print(f"  A duration:     {ta.duration_seconds:.3f}s ({ta.timezone})")
+    if tb is None:
+        if hb:
+            print(f"  B: approximate end from filename: {hb}")
+        else:
+            print(f"  B: (no timing block — legacy report: {path_b.name})")
+    else:
+        print(f"  B started UTC:  {tb.started_utc}")
+        print(f"  B started local:{tb.started_local}")
+        print(f"  B ended UTC:    {tb.ended_utc}")
+        print(f"  B ended local:  {tb.ended_local}")
+        print(f"  B duration:     {tb.duration_seconds:.3f}s ({tb.timezone})")
+    print()
+
+
 def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: int) -> int:
     text_a = path_a.read_text(encoding="utf-8")
     text_b = path_b.read_text(encoding="utf-8")
@@ -121,6 +156,8 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         print()
     else:
         print(f"--- Final loss: {loss_a:.6f} (same) ---\n")
+
+    _print_timing_comparison(path_a, path_b, text_a, text_b)
 
     if hist_a is not None and hist_b is not None:
         print(

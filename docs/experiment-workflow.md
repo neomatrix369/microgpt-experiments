@@ -115,7 +115,7 @@ TIER3_NONSENSE_RATIO=0.000000
 OVERALL_QUALITY_SCORE=0.582500
 ```
 
-Each run prints tier deltas vs that baseline; the sweep ends with a ranked table and **`sweep_summary.csv`** in the config’s `output_dir` (e.g. `outputs/sweeps/1-minimal/`).
+Each run prints tier deltas vs that baseline; the sweep ends with a ranked table, **`sweep_summary.csv`** (includes per-run UTC/local start/end and duration), and **`sweep_timing.txt`** (whole-grid wall clock) in the config’s `output_dir` (e.g. `outputs/sweeps/1-minimal/`).
 
 ```bash
 # List configs in recommended order

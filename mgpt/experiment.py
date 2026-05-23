@@ -16,6 +16,14 @@ from mgpt.model import KVCache, StateDict, Tokeniser, gpt
 from mgpt.ops import Vector, make_matrix, softmax
 from mgpt.value import Value
 from run_report import build_run_report_lines, format_run_output_path_for_params
+from run_report.timing import (
+    RunTiming,
+    build_run_timing,
+    capture_now,
+    format_duration_seconds,
+    format_progress_elapsed_eta,
+    print_carriage_progress,
+)
 
 DEFAULT_NAMES_URL = (
     "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
@@ -163,6 +171,7 @@ class ExperimentResult:
     quality_metrics: dict[str, float]
     semantic_quality: dict[str, object]
     report_path: Path | None
+    run_timing: RunTiming | None = None
 
 
 def experiment_suite_lines(config: RunConfig) -> list[str]:
@@ -231,6 +240,7 @@ def train(
 
     final_loss = float("nan")
     loss_history: list[float] = []
+    train_started = capture_now()
     for step in range(num_steps):
         doc = docs[step % len(docs)]
         tokens = [tok.bos] + [tok.uchars.index(ch) for ch in doc] + [tok.bos]
@@ -268,18 +278,24 @@ def train(
 
         final_loss = loss.data
         loss_history.append(float(loss.data))
+        progress = format_progress_elapsed_eta(
+            train_started,
+            completed=step + 1,
+            total=num_steps,
+        )
         if step >= 100:
             loss_avg_100 = sum(loss_history[-100:]) / 100
-            print(
+            print_carriage_progress(
                 f"Step {step + 1:4d} / {num_steps:4d} | Loss {loss.data:.4f} | "
-                f"Avg-100 {loss_avg_100:.4f}",
-                end="\r",
+                f"Avg-100 {loss_avg_100:.4f} | {progress}",
             )
         else:
-            print(
-                f"Step {step + 1:4d} / {num_steps:4d} | Loss {loss.data:.4f}",
-                end="\r",
+            print_carriage_progress(
+                f"Step {step + 1:4d} / {num_steps:4d} | Loss {loss.data:.4f} | {progress}",
             )
+    print(
+        f"\nTraining done — {format_progress_elapsed_eta(train_started, completed=num_steps, total=num_steps)}"
+    )
     return state_dict, final_loss, loss_history
 
 
@@ -335,6 +351,7 @@ def save_run_report(
     char_dist_score: float | None = None,
     quality_metrics: dict[str, float] | None = None,
     semantic_quality: dict[str, object] | None = None,
+    run_timing: RunTiming | None = None,
 ) -> None:
     """Write hyperparameters, final training loss, and generated lines to a file."""
     lines = build_run_report_lines(
@@ -357,6 +374,7 @@ def save_run_report(
         char_dist_score=char_dist_score,
         quality_metrics=quality_metrics,
         semantic_quality=semantic_quality,
+        run_timing=run_timing,
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -376,17 +394,20 @@ def run_experiment(
     docs = load_dataset(input_path=config.input_path, names_url=config.names_url)
     tok = build_tokeniser(docs)
 
+    started_at = capture_now()
     state_dict, final_loss, loss_history = train(docs, tok=tok, config=config)
     samples = generate(state_dict, tok=tok, config=config)
 
+    char_dist_score, quality_metrics, semantic_quality = compute_sample_quality_metrics(
+        samples, docs
+    )
+    ended_at = capture_now()
+    run_timing = build_run_timing(started_at, ended_at)
     if print_samples:
         print("\n--- Inference (new, hallucinated names) ---")
         for i, name in enumerate(samples, start=1):
             print(f"Sample {i:2d}: {name}")
 
-    char_dist_score, quality_metrics, semantic_quality = compute_sample_quality_metrics(
-        samples, docs
-    )
     if print_quality:
         for line in format_sample_quality_console_lines(
             char_dist_score,
@@ -418,8 +439,10 @@ def run_experiment(
             char_dist_score=char_dist_score,
             quality_metrics=quality_metrics,
             semantic_quality=semantic_quality,
+            run_timing=run_timing,
         )
         print(f"\nSaved run report to {report_path.resolve()}")
+    print(f"Run wall clock: {format_duration_seconds(run_timing.duration_seconds)}")
 
     return ExperimentResult(
         config=config,
@@ -430,4 +453,5 @@ def run_experiment(
         quality_metrics=quality_metrics,
         semantic_quality=semantic_quality,
         report_path=report_path,
+        run_timing=run_timing,
     )

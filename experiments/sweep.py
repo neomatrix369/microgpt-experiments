@@ -25,6 +25,15 @@ from mgpt.quality import (
     sweep_delta_csv_columns,
 )
 from run_report.parse import parse_run_report_text
+from run_report.timing import (
+    RunTiming,
+    build_sweep_timing,
+    capture_now,
+    format_duration_seconds,
+    format_progress_elapsed_eta,
+    read_sweep_timing,
+    write_sweep_timing,
+)
 
 from experiments.sweep_grid import (
     SweepConfig,
@@ -35,6 +44,7 @@ from experiments.sweep_grid import (
 )
 
 SUMMARY_CSV = "sweep_summary.csv"
+SWEEP_TIMING_TXT = "sweep_timing.txt"
 
 SWEEP_CONFIG_COLS = (
     "n_layer",
@@ -51,6 +61,15 @@ QUALITY_COLS = (*COMPARISON_METRIC_KEYS, "final_loss")
 
 DELTA_COLS = sweep_delta_csv_columns()
 
+TIMING_COLS = (
+    "started_utc",
+    "started_local",
+    "ended_utc",
+    "ended_local",
+    "duration_seconds",
+    "timezone",
+)
+
 
 @dataclass
 class SweepRow:
@@ -60,6 +79,7 @@ class SweepRow:
     final_loss: float
     semantic: dict[str, object]
     deltas: dict[str, float]
+    timing: RunTiming | None = None
 
     def to_csv_dict(self) -> dict[str, str | float | int]:
         row: dict[str, str | float | int] = {"suite_index": self.suite_index}
@@ -74,6 +94,16 @@ class SweepRow:
         for col in DELTA_COLS:
             key = col.removeprefix("delta_")
             row[col] = self.deltas[key]
+        if self.timing is not None:
+            row["started_utc"] = self.timing.started_utc
+            row["started_local"] = self.timing.started_local
+            row["ended_utc"] = self.timing.ended_utc
+            row["ended_local"] = self.timing.ended_local
+            row["duration_seconds"] = self.timing.duration_seconds
+            row["timezone"] = self.timing.timezone
+        else:
+            for col in TIMING_COLS:
+                row[col] = ""
         return row
 
 
@@ -83,6 +113,7 @@ def _csv_fieldnames() -> list[str]:
         *SWEEP_CONFIG_COLS,
         "report_file",
         *QUALITY_COLS,
+        *TIMING_COLS,
         *DELTA_COLS,
     ]
 
@@ -101,6 +132,7 @@ def _row_from_result(
         final_loss=result.final_loss,
         semantic=extract_comparison_metrics(sem),
         deltas=deltas,
+        timing=result.run_timing,
     )
 
 
@@ -141,6 +173,16 @@ def read_summary_csv(path: Path) -> list[SweepRow]:
                 for key in COMPARISON_METRIC_KEYS
             }
             deltas = {k.removeprefix("delta_"): float(raw[k]) for k in DELTA_COLS}
+            timing: RunTiming | None = None
+            if raw.get("started_utc"):
+                timing = RunTiming(
+                    started_utc=str(raw.get("started_utc", "")),
+                    started_local=str(raw.get("started_local", "")),
+                    ended_utc=str(raw.get("ended_utc", "")),
+                    ended_local=str(raw.get("ended_local", "")),
+                    duration_seconds=float(raw.get("duration_seconds") or 0.0),
+                    timezone=str(raw.get("timezone", "")),
+                )
             rows.append(
                 SweepRow(
                     suite_index=int(raw["suite_index"]),
@@ -149,6 +191,7 @@ def read_summary_csv(path: Path) -> list[SweepRow]:
                     final_loss=float(raw["final_loss"]),
                     semantic=sem,
                     deltas=deltas,
+                    timing=timing,
                 )
             )
     return rows
@@ -159,7 +202,7 @@ def _rows_from_output_dir(sweep: SweepConfig) -> list[SweepRow]:
     rows: list[SweepRow] = []
     reports = sorted(sweep.output_dir.glob("output_*.txt"))
     for path in reports:
-        parsed = parse_run_report_text(path.read_text(encoding="utf-8"))
+        parsed = parse_run_report_text(path.read_text(encoding="utf-8"), report_filename=path.name)
         sem = parsed.semantic_quality
         if sem is None:
             continue
@@ -183,6 +226,7 @@ def _rows_from_output_dir(sweep: SweepConfig) -> list[SweepRow]:
                 final_loss=parsed.final_loss,
                 semantic=extract_comparison_metrics(sem),
                 deltas=deltas,
+                timing=parsed.run_timing,
             )
         )
     return rows
@@ -200,15 +244,24 @@ def print_ranked_table(rows: list[SweepRow], baseline: BaselineMetrics) -> None:
     print("\n" + "=" * 72)
     print(f"SWEEP RANKING (by {SWEEP_RANKING_METRIC})")
     print("=" * 72)
-    header = f"{'Rank':<5} {'OVERALL':<9} {'Δ base':<9} {'N_HEAD':<7} {'STEPS':<7} report"
+    header = (
+        f"{'Rank':<5} {'OVERALL':<9} {'Δ base':<9} {'SEC':<8} "
+        f"{'N_HEAD':<7} {'STEPS':<7} report"
+    )
     print(header)
     print("-" * len(header))
     for rank, row in enumerate(ranked, start=1):
         overall = ranking_score(row.semantic)
         delta = row.deltas[SWEEP_RANKING_METRIC]
+        duration = (
+            f"{row.timing.duration_seconds:.1f}"
+            if row.timing is not None
+            else "—"
+        )
         print(
             f"{rank:<5} {overall:<9.4f} {delta:+.4f}    "
-            f"{row.config.n_head:<7} {row.config.num_steps:<7} {row.report_path}"
+            f"{duration:<8} {row.config.n_head:<7} {row.config.num_steps:<7} "
+            f"{row.report_path}"
         )
     best = ranked[0]
     cli = " ".join(best.config.to_cli_argv()) or "(defaults)"
@@ -236,6 +289,18 @@ def maybe_generate_html(sweep: SweepConfig) -> None:
     subprocess.run(cmd, check=False, cwd=_REPO_ROOT)
     if out_html.is_file():
         print(f"\nHTML comparison: {out_html.resolve()}")
+
+
+def _print_sweep_timing_summary(output_dir: Path) -> None:
+    timing = read_sweep_timing(output_dir / SWEEP_TIMING_TXT)
+    if timing is None:
+        return
+    print(
+        f"Sweep timing ({timing.run_count} runs): "
+        f"{format_duration_seconds(timing.duration_seconds)} "
+        f"({timing.started_utc} → {timing.ended_utc}; "
+        f"local {timing.started_local} → {timing.ended_local})"
+    )
 
 
 def run_sweep(
@@ -267,6 +332,7 @@ def run_sweep(
         rows = read_summary_csv(summary_path)
         if not rows:
             rows = _rows_from_output_dir(sweep)
+        _print_sweep_timing_summary(sweep.output_dir)
         print_ranked_table(rows, sweep.baseline)
         if html:
             maybe_generate_html(sweep)
@@ -274,18 +340,44 @@ def run_sweep(
 
     sweep.output_dir.mkdir(parents=True, exist_ok=True)
 
-    for cfg in configs:
-        idx = cfg.suite_index or 0
-        total = cfg.suite_total or len(configs)
-        print(f"\n--- Run {idx} / {total} ---")
+    sweep_started = capture_now()
+    total_runs = len(configs)
+    for run_idx, cfg in enumerate(configs):
+        idx = cfg.suite_index or (run_idx + 1)
+        total = cfg.suite_total or total_runs
+        sweep_progress = format_progress_elapsed_eta(
+            sweep_started,
+            completed=run_idx,
+            total=total_runs,
+        )
+        print(f"\n--- Run {idx} / {total} --- ({sweep_progress})")
         print(f"Config: {cfg.to_cli_argv() or '(defaults)'}")
         result = run_experiment(cfg, output_dir=sweep.output_dir, save_report=True)
         row = _row_from_result(result, sweep.baseline)
         rows.append(row)
         _print_baseline_comparison(row, sweep.baseline)
+        done_progress = format_progress_elapsed_eta(
+            sweep_started,
+            completed=run_idx + 1,
+            total=total_runs,
+        )
+        print(f"Sweep progress: {done_progress}")
 
+    sweep_ended = capture_now()
+    sweep_timing = build_sweep_timing(
+        sweep_started,
+        sweep_ended,
+        run_count=len(rows),
+    )
     write_summary_csv(rows, summary_path)
+    write_sweep_timing(sweep.output_dir / SWEEP_TIMING_TXT, sweep_timing)
     print(f"\nSummary CSV: {summary_path.resolve()}")
+    print(f"Sweep timing: {(sweep.output_dir / SWEEP_TIMING_TXT).resolve()}")
+    print(
+        f"Sweep wall clock: {format_duration_seconds(sweep_timing.duration_seconds)} "
+        f"({sweep_timing.started_utc} → {sweep_timing.ended_utc})"
+    )
+    _print_sweep_timing_summary(sweep.output_dir)
     print_ranked_table(rows, sweep.baseline)
     if html:
         maybe_generate_html(sweep)

@@ -104,6 +104,47 @@ class TestSweepGrid(unittest.TestCase):
         with self.assertRaises(ValueError):
             planned_run_configs(sweep, max_runs=2)
 
+    def test_sweep_csv_includes_timing_columns(self) -> None:
+        from experiments.sweep import SweepRow, _csv_fieldnames, write_summary_csv
+        from mgpt.experiment import RunConfig
+        from run_report.timing import RunTiming
+
+        row = SweepRow(
+            suite_index=1,
+            config=RunConfig(n_head=1),
+            report_path="output_test.txt",
+            final_loss=2.5,
+            semantic={
+                "overall_quality_score": 0.5,
+                "tier1_real_ratio": 0.5,
+                "tier2_plausible_ratio": 0.5,
+                "tier3_nonsense_ratio": 0.0,
+            },
+            deltas={
+                "overall_quality_score": 0.0,
+                "tier1_real_ratio": 0.0,
+                "tier2_plausible_ratio": 0.0,
+                "tier3_nonsense_ratio": 0.0,
+            },
+            timing=RunTiming(
+                started_utc="2026-05-23T22:30:45.123456+00:00",
+                started_local="2026-05-23T15:30:45.123456-07:00",
+                ended_utc="2026-05-23T22:31:00.123456+00:00",
+                ended_local="2026-05-23T15:31:00.123456-07:00",
+                duration_seconds=15.0,
+                timezone="PDT",
+            ),
+        )
+        fields = _csv_fieldnames()
+        self.assertIn("started_utc", fields)
+        self.assertIn("duration_seconds", fields)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sweep_summary.csv"
+            write_summary_csv([row], path)
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("started_utc", text)
+            self.assertIn("2026-05-23T22:30:45.123456+00:00", text)
+
     def test_baseline_report_loading(self) -> None:
         examples = list((_REPO / "example-experiments").glob("output_*.txt"))
         if not examples:

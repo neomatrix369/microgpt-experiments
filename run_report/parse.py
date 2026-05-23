@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .timing import RunTiming, parse_filename_local_timestamp, parse_run_timing
+
 _CFG_INT = frozenset(
     {"N_LAYER", "N_EMBD", "N_HEAD", "HEAD_DIM", "BLOCK_SIZE", "NUM_STEPS", "SEED"}
 )
@@ -69,6 +71,8 @@ class ParsedRunReport:
     avg_sample_length: float | None = None
     length_similarity: float | None = None
     semantic_quality: dict[str, object] | None = None
+    run_timing: RunTiming | None = None
+    filename_timestamp_hint: str | None = None
 
 
 def cfg_keys_in_display_order(keys: set[str]) -> list[str]:
@@ -150,7 +154,7 @@ def _parse_semantic_example_lines(text: str) -> dict[str, list[str]]:
     return examples
 
 
-def parse_run_report_text(text: str) -> ParsedRunReport:
+def parse_run_report_text(text: str, *, report_filename: str | None = None) -> ParsedRunReport:
     """Parse a saved run report: config key=value lines, final loss, inference samples."""
     loss_history: list[float] | None = None
     in_loss = False
@@ -253,6 +257,11 @@ def parse_run_report_text(text: str) -> ParsedRunReport:
             "tier3_examples": ex["tier3_examples"],
         }
 
+    run_timing = parse_run_timing(text)
+    filename_timestamp_hint: str | None = None
+    if run_timing is None and report_filename:
+        filename_timestamp_hint = parse_filename_local_timestamp(report_filename)
+
     return ParsedRunReport(
         config=cfg,
         final_loss=final_loss,
@@ -262,4 +271,6 @@ def parse_run_report_text(text: str) -> ParsedRunReport:
         avg_sample_length=avg_len_f,
         length_similarity=len_sim_f,
         semantic_quality=semantic,
+        run_timing=run_timing,
+        filename_timestamp_hint=filename_timestamp_hint,
     )

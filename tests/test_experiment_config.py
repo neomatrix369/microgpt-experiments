@@ -94,6 +94,9 @@ class TestRunExperiment(unittest.TestCase):
             text = result.report_path.read_text(encoding="utf-8")
             self.assertIn("OVERALL_QUALITY_SCORE=", text)
             self.assertIn("TIER1_REAL_RATIO=", text)
+            self.assertIn("RUN_STARTED_UTC=", text)
+            self.assertIn("RUN_ENDED_UTC=", text)
+            self.assertIn("DURATION_SECONDS=", text)
 
 
 if __name__ == "__main__":
