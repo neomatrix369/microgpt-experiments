@@ -1,6 +1,6 @@
-python compare_run_reports.py outputs/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt outputs/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt
-A: outputs/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt
-B: outputs/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt
+python compare_run_reports.py example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt example-experiments/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt
+A: example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt
+B: example-experiments/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt
 
 --- Shared config (both runs) ---
   N_LAYER=1
@@ -32,31 +32,31 @@ B: outputs/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt
   Sample bins: bin 0: steps 0-12; bin 36: steps 500-512; bin 71: steps 986-999
   Shared loss scale (all binned min/max): 1.5782 … 3.9440
   A:
-    3.944 │               ░        ░        ░
-          │ ░ ░           ░ ░      ░  ░     ░               ░
-          │░░ ░ ░         ░ ░░     ░  ░     ░    ░          ░              ░
-          │░░ ░ ░ ░  ░░ ░ ░ ░░ ░   ░  ░   ░ ░    ░░░    ░   ░░ ░░      ░   ░    ░
-          │█░░░ ░░░░░░░░░░░░░░░░ ░░░░░░░  ░░░░░ ░░░░░  ░░░░ ░░ ░░░     ░ ░░░  ░░░
-          │░█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░ ░░░░
+    3.944 │               ░        ░        ░                                      
+          │ ░ ░           ░ ░      ░  ░     ░               ░                      
+          │░░ ░ ░         ░ ░░     ░  ░     ░    ░          ░              ░       
+          │░░ ░ ░ ░  ░░ ░ ░ ░░ ░   ░  ░   ░ ░    ░░░    ░   ░░ ░░      ░   ░    ░  
+          │█░░░ ░░░░░░░░░░░░░░░░ ░░░░░░░  ░░░░░ ░░░░░  ░░░░ ░░ ░░░     ░ ░░░  ░░░  
+          │░█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░ ░░░░ 
     2.654 │ ░██████░░███░░░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░
           │ ░░░░░░░██░░░█████████░░░██░█████████████████████░░░█░█░░░░░███░░█░░░█░░
           │ ░░░░ ░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░░░░░░░░░█░█░░░█████░░░██░███░██
           │ ░    ░ ░░ ░░░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
           │             ░░ ░ ░░  ░░░ ░ ░  ░ ░   ░░ ░ ░░░░  ░░ ░░░░░░░░░░░░░░░░░░░░░
-    1.578 │                                     ░░          ░           ░     ░
+    1.578 │                                     ░░          ░           ░     ░    
   B:
-    3.944 │                        ░
-          │ ░ ░           ░        ░  ░     ░
-          │░░ ░ ░ ░       ░ ░░     ░  ░   ░ ░    ░          ░              ░
-          │░░ ░ ░░░  ░░ ░ ░ ░░ ░  ░░  ░   ░ ░    ░░     ░   ░░ ░       ░   ░    ░
-          │█░░░ ░░░░░░░░░░░░░░░░ ░░░░░░░  ░░░░░  ░░░░   ░░░░░░ ░░░     ░ ░░░  ░ ░
-          │░█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░░ ░░░░
+    3.944 │                        ░                                               
+          │ ░ ░           ░        ░  ░     ░                                      
+          │░░ ░ ░ ░       ░ ░░     ░  ░   ░ ░    ░          ░              ░       
+          │░░ ░ ░░░  ░░ ░ ░ ░░ ░  ░░  ░   ░ ░    ░░     ░   ░░ ░       ░   ░    ░  
+          │█░░░ ░░░░░░░░░░░░░░░░ ░░░░░░░  ░░░░░  ░░░░   ░░░░░░ ░░░     ░ ░░░  ░ ░  
+          │░█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░░ ░░░░ 
     2.654 │ ░██████░░██░░█░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░
           │ ░░░░░░░██░░██░███████░░░██░█████████░███████████░░░█░█░░░░░████░█░░░█░░
           │ ░░░░ ░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░█░░░░░░░░░░░█░█░░░█████░░░░█░███░██
           │ ░    ░  ░ ░░░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
           │             ░  ░ ░░  ░░░ ░ ░ ░░ ░   ░░░░ ░░░░   ░ ░░░░░░░░░░░ ░░░░░░░░░
-    1.578 │                                     ░░          ░           ░     ░
+    1.578 │                                     ░░          ░           ░     ░    
   Δ (A-B) binned means: -0.0439 … +0.0261  RMSE=0.0130  mean|Δ|=0.0100
   Δ (A-B) chart:
       Δ = (binned mean A - mean B). Axis is ±D with D = max(|min Δ|, |max Δ|) so the middle of the row ≈ Δ=0.
@@ -65,23 +65,23 @@ B: outputs/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt
               (binned Δ actually spanned -0.0439 … +0.0261)
 
 --- Inference samples ---
-*  1:  A: kamon   B: keltis
+*  1:  A: kamon   B: keltis 
 *  2:  A: ann     B: jeylion
-*  3:  A: karai   B: lana
-*  4:  A: jaire   B: elynan
-*  5:  A: vialan  B: ania
-*  6:  A: karia   B: lary
-*  7:  A: yeran   B: kanya
-*  8:  A: anna    B: masa
-*  9:  A: areli   B: carlin
-* 10:  A: kaina   B: kayl
-* 11:  A: konna   B: aran
-* 12:  A: keylen  B: noren
-* 13:  A: liole   B: liran
-  14:  A: alerin  B: alerin
-  15:  A: earan   B: earan
-* 16:  A: lenne   B: lelie
-  17:  A: kana    B: kana
-  18:  A: lara    B: lara
-  19:  A: alela   B: alela
-* 20:  A: anton   B: anyna
+*  3:  A: karai   B: lana   
+*  4:  A: jaire   B: elynan 
+*  5:  A: vialan  B: ania   
+*  6:  A: karia   B: lary   
+*  7:  A: yeran   B: kanya  
+*  8:  A: anna    B: masa   
+*  9:  A: areli   B: carlin 
+* 10:  A: kaina   B: kayl   
+* 11:  A: konna   B: aran   
+* 12:  A: keylen  B: noren  
+* 13:  A: liole   B: liran  
+  14:  A: alerin  B: alerin 
+  15:  A: earan   B: earan  
+* 16:  A: lenne   B: lelie  
+  17:  A: kana    B: kana   
+  18:  A: lara    B: lara   
+  19:  A: alela   B: alela  
+* 20:  A: anton   B: anyna  

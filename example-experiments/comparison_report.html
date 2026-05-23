@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>microGPT run comparison</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #fafafa; }
+    h1 { font-size: 1.25rem; }
+    h2 { font-size: 1.1rem; margin-top: 0; }
+    h3 { font-size: 1rem; }
+    table { border-collapse: collapse; background: #fff; box-shadow: 0 1px 3px #0001; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f0f0f0; }
+    .metric.best { font-weight: bold; color: #0a0; }
+    .samples { font-family: ui-monospace, monospace; max-width: 14rem; word-break: break-all; }
+    .fname { font-size: 0.8rem; color: #555; }
+    .section { margin-top: 2rem; }
+    .tier-bars { display: flex; gap: 10px; margin-bottom: 1.5rem; }
+    .bar { padding: 10px; border-radius: 5px; }
+    .bar.real { background: #d4edda; }
+    .bar.plausible { background: #fff3cd; }
+    .bar.nonsense { background: #f8d7da; }
+    tr.legacy-summary td { background: #f0f0f0; font-size: 0.9rem; line-height: 1.4; }
+    pre.config-block, pre.loss-ascii {
+      font-family: ui-monospace, monospace; font-size: 0.72rem;
+      background: #fff; border: 1px solid #ddd; padding: 0.75rem;
+      overflow-x: auto; line-height: 1.25;
+    }
+    table.config-diff th[scope="row"] { text-align: left; vertical-align: top; }
+    .cfg-calculated-hint {
+      font-size: 0.72rem; font-weight: normal; color: #555; margin-top: 0.25rem;
+      line-height: 1.3; max-width: 16rem; white-space: normal;
+    }
+    table.samples-grid .samp-idx { font-family: ui-monospace, monospace; color: #666; width: 2.5rem; }
+  </style>
+</head>
+<body>
+  <h1>microGPT run comparison</h1>
+  <p>2 run(s) with full quality metrics. Best final loss and best overall quality (when &gt; 0) apply only to those runs. Config, samples, and loss graphs include every report passed in.</p>
+    <div class="section">
+    <h2>Training config</h2>
+    <h3>Shared across all runs</h3>    <pre class="config-block">N_LAYER=1
+N_EMBD=16
+BLOCK_SIZE=16
+NUM_STEPS=1000
+TEMPERATURE=0.5
+SEED=42
+LEARNING_RATE=0.01
+BETA1=0.85
+BETA2=0.99
+EPS_ADAM=1e-08
+INPUT_PATH=input.txt</pre>
+    <h3>Varying by run</h3>
+    <table class="config-diff">
+      <tr><th scope="col">Key</th><th>output_L1_E16_H1_B16_S1000_…</th><th>output_L1_E16_H4_B16_S1000_…</th></tr>
+            <tr><th scope="row"><code>N_HEAD</code></th><td><code>1</code></td><td><code>4</code></td></tr>
+            <tr><th scope="row"><code>HEAD_DIM</code><div class="cfg-calculated-hint">calculated from N_EMBD and N_HEAD (N_EMBD // N_HEAD)</div></th><td><code>16</code></td><td><code>4</code></td></tr>
+    </table>
+    </div>
+  <div class="section">
+    <h2>Runs (quality summary)</h2>
+    <table>
+      <tr>
+        <th>Config (H×D)</th>
+        <th>Final loss</th>
+        <th>Overall quality</th>
+        <th>Real words</th>
+        <th>Plausible</th>
+        <th>Nonsense</th>
+        <th>First sample</th>
+        <th>File</th>
+      </tr>
+            <tr>
+                <td>1×16</td>
+                <td class="metric best">2.6063</td>
+                <td class="metric ">0.560</td>
+                <td>40.0%</td>
+                <td>60.0%</td>
+                <td>0.0%</td>
+                <td class="samples">keltis</td>
+                <td class="fname">output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt</td>
+            </tr>
+            <tr>
+                <td>4×4</td>
+                <td class="metric ">2.6497</td>
+                <td class="metric best">0.583</td>
+                <td>55.0%</td>
+                <td>45.0%</td>
+                <td>0.0%</td>
+                <td class="samples">kamon</td>
+                <td class="fname">output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt</td>
+            </tr>
+    </table>
+  </div>
+    <div class="section">
+    <h2>Inference samples (aligned)</h2>
+    <p><em>* marks rows where not all runs agree (same layout as <code>compare_run_reports.py</code>).</em></p>
+    <table class="samples-grid">
+      <tr><th></th><th>output_L1_E16_H1_B16_S1…</th><th>output_L1_E16_H4_B16_S1…</th></tr>
+            <tr><td class="samp-idx">* 1</td><td class="samples">keltis</td><td class="samples">kamon</td></tr>
+            <tr><td class="samp-idx">* 2</td><td class="samples">jeylion</td><td class="samples">ann</td></tr>
+            <tr><td class="samp-idx">* 3</td><td class="samples">lana</td><td class="samples">karai</td></tr>
+            <tr><td class="samp-idx">* 4</td><td class="samples">elynan</td><td class="samples">jaire</td></tr>
+            <tr><td class="samp-idx">* 5</td><td class="samples">ania</td><td class="samples">vialan</td></tr>
+            <tr><td class="samp-idx">* 6</td><td class="samples">lary</td><td class="samples">karia</td></tr>
+            <tr><td class="samp-idx">* 7</td><td class="samples">kanya</td><td class="samples">yeran</td></tr>
+            <tr><td class="samp-idx">* 8</td><td class="samples">masa</td><td class="samples">anna</td></tr>
+            <tr><td class="samp-idx">* 9</td><td class="samples">carlin</td><td class="samples">areli</td></tr>
+            <tr><td class="samp-idx">* 10</td><td class="samples">kayl</td><td class="samples">kaina</td></tr>
+            <tr><td class="samp-idx">* 11</td><td class="samples">aran</td><td class="samples">konna</td></tr>
+            <tr><td class="samp-idx">* 12</td><td class="samples">noren</td><td class="samples">keylen</td></tr>
+            <tr><td class="samp-idx">* 13</td><td class="samples">liran</td><td class="samples">liole</td></tr>
+            <tr><td class="samp-idx">  14</td><td class="samples">alerin</td><td class="samples">alerin</td></tr>
+            <tr><td class="samp-idx">  15</td><td class="samples">earan</td><td class="samples">earan</td></tr>
+            <tr><td class="samp-idx">* 16</td><td class="samples">lelie</td><td class="samples">lenne</td></tr>
+            <tr><td class="samp-idx">  17</td><td class="samples">kana</td><td class="samples">kana</td></tr>
+            <tr><td class="samp-idx">  18</td><td class="samples">lara</td><td class="samples">lara</td></tr>
+            <tr><td class="samp-idx">  19</td><td class="samples">alela</td><td class="samples">alela</td></tr>
+            <tr><td class="samp-idx">* 20</td><td class="samples">anyna</td><td class="samples">anton</td></tr>
+    </table>
+    </div>
+    <div class="section">
+    <h2>Loss history (text graphs)</h2>
+    <p>Same binned min–mean–max grids as <code>compare_run_reports.py</code> (<code>--loss-bins</code>=72, <code>--loss-height</code>=12). With multiple runs, the <strong>baseline</strong> is the one with the <strong>lowest final loss</strong> among reports that include loss history; each other run is compared to that baseline.</p>
+    <p><strong>Baseline:</strong> output_L1_E16_H1_B16_S1000_T0p5_see… (lowest final loss among runs with history).</p>
+    <h3>output_L1_E16_H1_B16_S1000_T0p5_see… vs output_L1_E16_H4_B16_S1000_T0p5_see…</h3>
+    <pre class="loss-ascii">--- Loss history (text graph) ---
+  How to read:
+    • Horizontal: 72 bins; each bin averages one contiguous block of steps.
+    • Vertical: loss increases upward (top of grid = higher loss).
+    • ░ = spread (min–max loss) inside that bin; █ = mean loss in that bin.
+    • Δ row (below): symmetric ±D axis; center ≈ tie, left/right = who leads per bin.
+  Sample bins: bin 0: steps 0-12; bin 36: steps 500-512; bin 71: steps 986-999
+  Shared loss scale (all binned min/max): 1.5782 … 3.9440
+  output_L1_E16_H1_B16_S1000_T0p5_see…:
+    3.944 │                        ░                                               
+          │ ░ ░           ░        ░  ░     ░                                      
+          │░░ ░ ░ ░       ░ ░░     ░  ░   ░ ░    ░          ░              ░       
+          │░░ ░ ░░░  ░░ ░ ░ ░░ ░  ░░  ░   ░ ░    ░░     ░   ░░ ░       ░   ░    ░  
+          │█░░░ ░░░░░░░░░░░░░░░░ ░░░░░░░  ░░░░░  ░░░░   ░░░░░░ ░░░     ░ ░░░  ░ ░  
+          │░█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░░ ░░░░ 
+    2.654 │ ░██████░░██░░█░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░
+          │ ░░░░░░░██░░██░███████░░░██░█████████░███████████░░░█░█░░░░░████░█░░░█░░
+          │ ░░░░ ░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░█░░░░░░░░░░░█░█░░░█████░░░░█░███░██
+          │ ░    ░  ░ ░░░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+          │             ░  ░ ░░  ░░░ ░ ░ ░░ ░   ░░░░ ░░░░   ░ ░░░░░░░░░░░ ░░░░░░░░░
+    1.578 │                                     ░░          ░           ░     ░    
+  output_L1_E16_H4_B16_S1000_T0p5_see…:
+    3.944 │               ░        ░        ░                                      
+          │ ░ ░           ░ ░      ░  ░     ░               ░                      
+          │░░ ░ ░         ░ ░░     ░  ░     ░    ░          ░              ░       
+          │░░ ░ ░ ░  ░░ ░ ░ ░░ ░   ░  ░   ░ ░    ░░░    ░   ░░ ░░      ░   ░    ░  
+          │█░░░ ░░░░░░░░░░░░░░░░ ░░░░░░░  ░░░░░ ░░░░░  ░░░░ ░░ ░░░     ░ ░░░  ░░░  
+          │░█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ░░░░░░░ ░░░░ 
+    2.654 │ ░██████░░███░░░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░░░░░█░░█░░░░░░░░░░░░░░░░░░
+          │ ░░░░░░░██░░░█████████░░░██░█████████████████████░░░█░█░░░░░███░░█░░░█░░
+          │ ░░░░ ░░░░░░░░░░░░░░░░██░░░░░░░░░░░░░░░░░░░░░░░░░█░█░░░█████░░░██░███░██
+          │ ░    ░ ░░ ░░░░░░░░░░░░░░░░ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+          │             ░░ ░ ░░  ░░░ ░ ░  ░ ░   ░░ ░ ░░░░  ░░ ░░░░░░░░░░░░░░░░░░░░░
+    1.578 │                                     ░░          ░           ░     ░    
+  Δ (output_L1_E16_H1_B16_S1000_T0p5_see…-output_L1_E16_H4_B16_S1000_T0p5_see…) binned means: -0.0261 … +0.0439  RMSE=0.0130  mean|Δ|=0.0100
+  Δ (output_L1_E16_H1_B16_S1000_T0p5_see…-output_L1_E16_H4_B16_S1000_T0p5_see…) chart:
+      Δ = (binned mean A - mean B). Axis is ±D with D = max(|min Δ|, |max Δ|) so the middle of the row ≈ Δ=0.
+      Blocks ▁▂▃▄▅▆▇█: low = A doing better there, high = A doing worse (same as lower vs higher loss).
+    -0.0439 │▅▅▅▅▅▆▅▄▅▄▅▅▃▆▆▂▆▄▆▆▅▄▄▄▄▅▅▅▄▄▆█▄▄█▆▄▃▆▄▄▄▅▄▅▄▆▅▄▅▄▅▆▃▆▃▅▅▆▅▅▅▅▆▅▄▅▅▃▅▅▅│ +0.0439
+              (binned Δ actually spanned -0.0261 … +0.0439)</pre>
+    </div>
+  <div class="section">
+    <h2>Quality distribution</h2>
+        <h3>1×16</h3>
+        <div class="tier-bars">
+            <div class="bar real" style="flex: 40"><strong>Real: 40.0%</strong></div>
+            <div class="bar plausible" style="flex: 60"><strong>Plausible: 60.0%</strong></div>
+            <div class="bar nonsense" style="flex: 1"><strong>Nonsense: 0.0%</strong></div>
+        </div>
+        <h3>4×4</h3>
+        <div class="tier-bars">
+            <div class="bar real" style="flex: 55"><strong>Real: 55.0%</strong></div>
+            <div class="bar plausible" style="flex: 45"><strong>Plausible: 45.0%</strong></div>
+            <div class="bar nonsense" style="flex: 1"><strong>Nonsense: 0.0%</strong></div>
+        </div>
+  </div>
+</body>
+</html>

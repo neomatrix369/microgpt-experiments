@@ -86,7 +86,7 @@ python microgpt_updated.py --n-head 1 --num-steps 50
 python microgpt_updated.py --n-head 1 --num-steps 2000
 ```
 
-Each run writes a new `outputs/output_*.txt` whose stem encodes the effective config (plus a local timestamp). Compare reports with `compare_run_reports.py` or `experiments/report_generator.py` (see [Run reports](#run-reports)).
+Each run writes a new `outputs/output_*.txt` whose stem encodes the effective config (plus a local timestamp). Compare reports with `compare_run_reports.py` or `experiments/report_generator.py` (see [Run reports](#run-reports)). For **checked-in examples** you can browse without training first, see [Example artifacts (preview)](#example-artifacts-preview).
 
 **Tests** (optional; requires `pytest` installed in your environment):
 
@@ -126,7 +126,7 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`README.md`** | This overview (architecture, config, run reports). |
 | **`CLAUDE.md`** | Maintainer / assistant context: conventions, internals, which file to edit. |
 | **`AGENTS.md`** | Short pointer to `README.md` / `CLAUDE.md` for agent harnesses. |
-| **`example-experiments/`** | Checked-in **`compare_run_reports.py`** output (and similar) illustrating report diffs; see [Example compare transcript](#example-compare-transcript). Raw `output_*.txt` files are ignored repo-wide ([`.gitignore`](./.gitignore)); add them with `git add -f` only if you intend to track full reports next to the compare text. |
+| **`example-experiments/`** | Checked-in **sample run reports**, a **`compare_run_reports.py`** transcript, and an **HTML comparison** for the **4-head vs 1-head @ 1000 steps** pair — see [Example artifacts (preview)](#example-artifacts-preview). Your own runs still land in gitignored **`outputs/`**. |
 
 ---
 
@@ -231,9 +231,82 @@ python compare_run_reports.py outputs/output_A.txt outputs/output_B.txt --loss-b
 
 **Exit codes:** `0` — parsed config, loss, and all sample strings match; `1` — at least one difference; `2` — wrong number of arguments, a path is not a file, or a report could not be parsed (e.g. missing final loss line).
 
-#### Example compare transcript
+### Example artifacts (preview)
 
-The repo includes a saved CLI transcript under **`example-experiments/`** (from comparing two **`NUM_STEPS=1000`** runs that differ only in **`N_HEAD`** — the **4-head** vs **1-head** pair echoed in [Run experiments examples](#run-experiments-examples)). Use it as a fixed reference when explaining `compare_run_reports.py` without regenerating `outputs/` locally.
+The **[`example-experiments/`](./example-experiments/)** folder holds real artifacts from the **4-head vs 1-head @ 1000 steps** pair in [Run experiments examples](#run-experiments-examples). Open the files directly, or skim the excerpts below.
+
+| File | What it is |
+|------|------------|
+| [`output_L1_E16_H4_B16_S1000_…152649.txt`](./example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt) | Full run report — **4 heads**, 1000 steps |
+| [`output_L1_E16_H1_B16_S1000_…152836.txt`](./example-experiments/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt) | Full run report — **1 head**, 1000 steps |
+| [`compare-output_…152649-and-…152836.txt`](./example-experiments/compare-output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649-and-output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt) | Saved **`compare_run_reports.py`** stdout for those two files |
+| [`comparison_report.html`](./example-experiments/comparison_report.html) | **`experiments/report_generator.py`** HTML for the same pair (open in a browser) |
+
+**Run report** (start of the 4-head file; each report also embeds 1000-step loss CSV and a parameter glossary):
+
+```text
+microGPT run report
+===================
+--- What this run is ---
+…
+Training: … N_HEAD=4 (16 split across 4 heads → 4 per head), trained for 1000 optimizer steps. …
+Output: The last-step training loss is 2.649694 … Below, 20 lines are *generated* strings …
+
+--- Config (this run) ---
+N_LAYER=1
+N_EMBD=16
+N_HEAD=4
+HEAD_DIM=4
+# HEAD_DIM is N_EMBD // N_HEAD (not a separate sweep knob).
+…
+Final loss (last training step): 2.649694
+
+--- Sample quality (character-level) ---
+CHAR_DIST_SIMILARITY=0.715318
+…
+
+--- Semantic quality (three-tier) ---
+TIER1_REAL_COUNT=11
+TIER1_REAL_RATIO=0.550000
+…
+
+--- Inference samples ---
+Sample  1: kamon
+Sample  2: ann
+…
+Sample 20: anton
+```
+
+**CLI compare** (config diff + sample grid; the saved file also includes ASCII loss curves):
+
+```text
+--- Config differences ---
+  N_HEAD:                                                           A=4  |  B=1
+  HEAD_DIM (calculated from N_EMBD and N_HEAD (N_EMBD // N_HEAD)):  A=4  |  B=16
+
+--- Final loss ---
+  A: 2.649694
+  B: 2.606264
+
+--- Inference samples ---
+*  1:  A: kamon   B: keltis
+*  2:  A: ann     B: jeylion
+…
+  14:  A: alerin  B: alerin
+…
+* 20:  A: anton   B: anyna
+```
+
+**HTML comparison** — side-by-side config, quality summary, aligned samples, tier bars, and loss ASCII for both runs. Regenerate the checked-in copy from the repo root:
+
+```bash
+python experiments/report_generator.py \
+  example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt \
+  example-experiments/output_L1_E16_H1_B16_S1000_T0p5_seed42_20260424_152836.txt \
+  -o example-experiments/comparison_report.html
+```
+
+Your own sweeps still write to gitignored **`outputs/`**; only **`example-experiments/`** is tracked as a fixed reference set.
 
 ### HTML comparison (multi-run)
 

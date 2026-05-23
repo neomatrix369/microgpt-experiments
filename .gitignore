@@ -31,8 +31,12 @@ ENV/
 outputs/
 # Legacy: reports saved in repo root before outputs/ was default
 output_*.txt
+# Checked-in demos (see example-experiments/ in README)
+!example-experiments/
+!example-experiments/**
 
 # Dataset (scripts download names.txt from makemore when missing)
 input.txt
 
 *.htm*
+!example-experiments/*.html
