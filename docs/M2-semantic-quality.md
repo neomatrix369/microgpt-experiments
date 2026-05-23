@@ -78,7 +78,7 @@ High Tier 1 can mean the model **memorized** common names—or that your corpus 
 
 ### Overall score
 
-`OVERALL_QUALITY_SCORE` combines tier ratios (real × 1.0, plausible × 0.7, non-nonsense × 0.3) into one number in **[0, 1]**. Use it to **rank runs**, not as ground truth.
+`OVERALL_QUALITY_SCORE` combines tier ratios (real × 1.0, plausible × 0.7, non-nonsense × 0.3) into one number in **[0, 1]**. Use it to **rank runs**, not as ground truth. The formula lives in **`mgpt/quality.py`** (`compute_overall_quality_score`).
 
 **Note:** tiers are **not strictly disjoint** in every edge case; `distribution_sum` in code is a sanity hint only.
 
@@ -99,6 +99,26 @@ Compare with the **1-head** report in the same folder to see how architecture ch
 
 ---
 
+## Experimentation platform (simple heuristics today)
+
+The grid sweep (`experiments/sweep.py`) **optimizes whatever `SWEEP_RANKING_METRIC` points at** in **`mgpt/quality.py`** (default: `overall_quality_score`). Baseline comparison and `sweep_summary.csv` deltas use the same four metrics — centralized in **`mgpt/quality.py`**.
+
+This is intentionally **simple**: rule-based tiers, no dictionary, no LLM judge. Good for **comparing architectures** on the names task, not for claiming human-level quality.
+
+### Extending quality scoring yourself
+
+| Goal | Where to change |
+|------|-----------------|
+| Better per-sample rules (pronounceability, tiers, plausibility threshold) | **`mgpt/evaluation.py`** |
+| Different **objective** / weights for ranking runs | **`mgpt/quality.py`** — `compute_overall_quality_score`, `SWEEP_RANKING_METRIC` |
+| Baseline reference for sweeps | JSON `baseline` in sweep config, **`DEFAULT_REFERENCE_BASELINE`**, or `"baseline_report"` path |
+| Report file format | **`run_report/builder.py`**, **`run_report/parse.py`** |
+| HTML tier bars | **`experiments/report_generator.py`** |
+
+After changing evaluation, re-run training. Add tests in **`tests/test_evaluation.py`** and **`tests/test_quality.py`**.
+
+---
+
 ## Where the numbers flow (code → files)
 
 ```mermaid
@@ -106,25 +126,32 @@ flowchart TB
   Train[microgpt_updated.train]
   Gen[microgpt_updated.generate]
   Eval[mgpt.evaluation.compute_sample_quality_metrics]
+  Qual[mgpt.quality compute_overall + compare]
+  Sweep[experiments/sweep.py]
   Report[run_report.build_run_report_lines]
   Disk[outputs/output_*.txt]
   HTML[experiments/report_generator.py]
   Cmp[compare_run_reports.py]
   Train --> Gen
   Gen --> Eval
+  Eval --> Qual
   Eval --> Report
+  Qual --> Sweep
   Report --> Disk
   Disk --> HTML
   Disk --> Cmp
+  Disk --> Sweep
 ```
 
 | Step | Module | What happens |
 |------|--------|----------------|
 | 1 | `microgpt_updated.py` | Train, then `generate()` → 20 samples |
-| 2 | `mgpt/evaluation.py` | `compute_sample_quality_metrics()` → char + semantic dicts |
-| 3 | `run_report/builder.py` | Embeds metrics in `output_*.txt`; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** |
-| 4 | `experiments/report_generator.py` | HTML table + tier bars |
-| 5 | `compare_run_reports.py` | Diff config, loss, samples (not quality blocks for exit code) |
+| 2 | `mgpt/evaluation.py` | Tier/heuristic scoring from samples + corpus |
+| 3 | `mgpt/quality.py` | Overall score formula, baseline compare, sweep ranking keys |
+| 4 | `run_report/builder.py` | Embeds metrics in `output_*.txt`; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** |
+| 5 | `experiments/sweep.py` | Grid search ranked by `SWEEP_RANKING_METRIC` vs JSON baseline |
+| 6 | `experiments/report_generator.py` | HTML table + tier bars |
+| 7 | `compare_run_reports.py` | Diff config, loss, samples (not quality blocks for exit code) |
 
 ---
 
@@ -181,7 +208,8 @@ python microgpt_updated.py --num-steps 500 --temperature 0.7 \
 
 | Slice | Outcome |
 |-------|---------|
-| **1 — `mgpt/evaluation.py`** | Character similarity, length stats, pronounceability, plausibility, three-tier semantic summary. Max consonant run **4**; `overall_quality_score` clamped to `[0, 1]`. |
+| **1 — `mgpt/evaluation.py`** | Character similarity, length stats, pronounceability, plausibility, three-tier semantic summary. Max consonant run **4**. |
+| **1b — `mgpt/quality.py`** | Overall score formula, baseline compare, sweep ranking metric (`SWEEP_RANKING_METRIC`). |
 | **2 — `run_report`** | Quality blocks in reports; `ParsedRunReport` extended; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**. |
 | **3 — `microgpt_updated.py`** | Console SAMPLE QUALITY block + `save_run_report()`. |
 | **4 — `experiments/report_generator.py`** | HTML comparison with tier bars. |

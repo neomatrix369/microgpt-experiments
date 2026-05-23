@@ -102,6 +102,53 @@ python experiments/report_generator.py -o outputs/comparison_report.html
 
 ---
 
+## Grid sweep (automated search)
+
+For systematic hyperparameter search ranked by **`OVERALL_QUALITY_SCORE`**, use **`experiments/sweep.py`** with a numbered JSON config under **`experiments/configs/`**. Files are prefixed **`1_` … `4_`** so run order is obvious; see [`experiments/configs/README.md`](../experiments/configs/README.md).
+
+**Baseline** (default in the example configs — H4 @ 1000 steps):
+
+```text
+TIER1_REAL_RATIO=0.550000
+TIER2_PLAUSIBLE_RATIO=0.450000
+TIER3_NONSENSE_RATIO=0.000000
+OVERALL_QUALITY_SCORE=0.582500
+```
+
+Each run prints tier deltas vs that baseline; the sweep ends with a ranked table and **`sweep_summary.csv`** in the config’s `output_dir` (e.g. `outputs/sweeps/1-minimal/`).
+
+```bash
+# List configs in recommended order
+python experiments/sweep.py --list-configs
+
+# Quick pipeline check (~seconds): 2 runs × 5 steps
+python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
+
+# Step 1 — preview then run (4 runs: n_head x num_steps; slow)
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --dry-run
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json
+
+# Re-rank without retraining
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --summarize-only
+
+# Optional HTML after sweep
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --summarize-only --html
+```
+
+| Order | Config | Grid focus | ~Runs |
+|------:|--------|------------|------:|
+| 0 | `0_sweep-smoke-test.json` | `n_head` × 5 steps (pipeline check) | 2 |
+| 1 | `1_sweep-minimal.json` | `n_head` × `num_steps` | 4 |
+| 2 | `2_sweep-arch.json` | `n_layer` × `n_embd` × `n_head` | 12 |
+| 3 | `3_sweep-arch-steps.json` | arch + `num_steps` | 6 |
+| 4 | `4_sweep-full.json` | steps + `temperature` + `learning_rate` | 18 |
+
+Run configs in order when learning the tool. Use **`--max-runs N`** on larger grids. **`HEAD_DIM`** is never swept (derived from `n_embd` and `n_head`).
+
+**What the sweep optimizes:** simple heuristic tier scores (not ground-truth name quality). Computation lives in **`mgpt/evaluation.py`**; the overall formula, baseline compare, and ranking key live in **`mgpt/quality.py`**. To plug in better metrics, extend those modules — see **[M2-semantic-quality.md → Extending quality scoring](./M2-semantic-quality.md#extending-quality-scoring-yourself)**.
+
+---
+
 ## Which compare tool?
 
 | Tool | Best for | Input | Output |

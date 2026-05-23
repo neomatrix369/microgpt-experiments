@@ -12,8 +12,10 @@ There is **no** `requirements.txt` or `pyproject.toml` by design: only the Pytho
 | `docs/README.md` | **Documentation index** — guides organized by persona (learner, workshop, explorer, experimenter, contributor). |
 | `microgpt.py` | Compact “single story” version: one script, global state, matches the original blog-style walkthrough. |
 | `microgpt_updated.py` | Refactored entry: hyperparameters (module constants, overridable via **`argparse`** CLI), `train()` / `generate()` / `main()`, `save_run_report()`, and richer comments. Imports the **`mgpt`** package (autograd, transformer forward, data) and **`run_report`** (on-disk report format). Prefer this for changes that need structure or tests. |
-| `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), sample metrics (`evaluation.py`: character similarity + three-tier semantic heuristics; `compute_sample_quality_metrics` / `format_sample_quality_console_lines` feed the refactored entry and reports). Stdlib only. |
+| `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), **`experiment.py`** (`RunConfig`, `run_experiment()`), **`evaluation.py`** (tier/heuristic sample scoring), **`quality.py`** (overall score formula, baseline compare, `SWEEP_RANKING_METRIC` for grid sweep). Stdlib only. |
 | `run_report/` | Package: parse/compare fields of `output_*.txt` (`parse.py`), narrative (`narrative.py`), **`paths.py`** (`run_reports_dir`, `DEFAULT_RUN_REPORT_DIR`), full report assembly (`builder.py`), text loss comparison grids (`text_loss_plot.py`). Shared by `microgpt_updated.py`, `annotate_run_reports.py`, `compare_run_reports.py`, and `experiments/report_generator.py`. |
+| `experiments/sweep.py` | Grid-search CLI: numbered JSON configs in **`experiments/configs/`** (`1_sweep-minimal.json` … `4_sweep-full.json`); calls **`mgpt.experiment.run_experiment()`**, writes **`sweep_summary.csv`** under **`outputs/sweeps/<order>-<name>/`**, ranks by **`OVERALL_QUALITY_SCORE`**. **`--list-configs`**, **`--dry-run`**, **`--summarize-only`**, **`--html`**. |
+| `experiments/configs/` | Numbered sweep JSON files + **`README.md`** (recommended run order). |
 | `experiments/report_generator.py` | `argparse` CLI: reads one or more `output_*.txt` files (default: glob under `outputs/` at repo root), writes HTML (`-o`, default `outputs/comparison_report.html`): shared/varying training config (same key order as `compare_run_reports.py`: **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**, then the rest; `HEAD_DIM` annotated as calculated), quality table, aligned samples (2+ runs), loss ASCII (`--loss-bins`, `--loss-height`), tier bars. |
 | `tests/` | `pytest` tests for evaluation, paths, report builder/parse round-trip, loss-plot helpers, and `report_generator` HTML output. |
 | `annotate_run_reports.py` | Inserts the same `--- What this run is ---` narrative into **existing** `output_*.txt` reports (stdlib-only backfill for past experiments). |
@@ -63,7 +65,15 @@ python experiments/report_generator.py
 python experiments/report_generator.py outputs/a.txt outputs/b.txt -o outputs/comparison_report.html
 ```
 
-Exit codes (`compare_run_reports.py`): `0` all match, `1` some field or sample differs, `2` bad args or parse failure. `report_generator.py` exits `2` if no input files or render error.
+**Grid sweep** (numbered configs under `experiments/configs/`):
+
+```bash
+python experiments/sweep.py --list-configs
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --dry-run
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json
+```
+
+Exit codes (`compare_run_reports.py`): `0` all match, `1` some field or sample differs, `2` bad args or parse failure. `report_generator.py` exits `2` if no input files or render error. `sweep.py` exits `2` on config/parse errors.
 
 **Runtime**: Training is 1000 steps by default and is **slow** (scalar autograd in Python). That is expected.
 
@@ -79,7 +89,7 @@ When adding features, keep the **no third-party dependencies** rule unless the p
 
 ## Testing
 
-Run **`pytest`** from the repo root: `python -m pytest tests/ -q` (modules cover evaluation, paths, text loss plots, and the HTML report generator). See `docs/M2-semantic-quality.md` for the semantic-quality / run-report slice log.
+Run **`pytest`** from the repo root: `python -m pytest tests/ -q` (evaluation, quality hub, experiment API, sweep grid, paths, text loss plots, HTML report generator). See `docs/M2-semantic-quality.md` for the semantic-quality slice log.
 
 ## Git and docs
 

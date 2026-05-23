@@ -13,7 +13,7 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 | **Learner / student** | [learn-before-you-code.md](./learn-before-you-code.md) | [autograd-deep-dive.md](./autograd-deep-dive.md) → `mgpt/value.py` → `microgpt.py` |
 | **Workshop / playgroup attendee** | [QUICKSTART.md](../QUICKSTART.md) | [experiment-workflow.md](./experiment-workflow.md) → [README Run experiments](../README.md#run-experiments-examples) |
 | **Curious explorer** (no training) | [example-experiments/](../example-experiments/) | Open `comparison_report.html` in a browser |
-| **Experimenter** (sweeps & compare) | [experiment-workflow.md](./experiment-workflow.md) | [M2-semantic-quality.md](./M2-semantic-quality.md) for tier metrics |
+| **Experimenter** (sweeps & compare) | [experiment-workflow.md](./experiment-workflow.md) | Grid: `0_sweep-smoke-test.json` … `4_sweep-full.json` · tiers: [M2-semantic-quality.md](./M2-semantic-quality.md) |
 | **Contributor / extender** | [CLAUDE.md](../CLAUDE.md) | [README repository layout](../README.md#repository-layout) |
 
 ---
@@ -34,7 +34,8 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 | Task | Command / path |
 |------|----------------|
 | Default training run | `python microgpt_updated.py` |
-| Head-count sweep | See [experiment-workflow.md](./experiment-workflow.md#canonical-sweep-commands) |
+| Head-count sweep (manual CLI) | See [experiment-workflow.md](./experiment-workflow.md#canonical-sweep-commands) |
+| Grid sweep (JSON configs) | `python experiments/sweep.py --list-configs` · smoke: `0_sweep-smoke-test.json` |
 | Diff two runs | `python compare_run_reports.py outputs/a.txt outputs/b.txt` |
 | HTML table (2+ runs) | `python experiments/report_generator.py` |
 | Browse demo results | [example-experiments/comparison_report.html](../example-experiments/comparison_report.html) |

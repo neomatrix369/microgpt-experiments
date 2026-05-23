@@ -62,12 +62,32 @@ python microgpt_updated.py --temperature 0.8
 
 ---
 
+## 5. Grid sweep (optional)
+
+Try the experimentation platform **without** a long training run:
+
+```bash
+# List numbered configs (0 = smoke test, 1–4 = real sweeps)
+python experiments/sweep.py --list-configs
+
+# Preview combinations only
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --dry-run
+
+# Quick pipeline check: 2 runs × 5 steps (~seconds)
+python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
+```
+
+Outputs land in **`outputs/sweeps/0-smoke-test/`** (`sweep_summary.csv` + ranked table vs the H4 @ 1000 baseline). For full sweeps and quality-score details, see **[docs/experiment-workflow.md](docs/experiment-workflow.md#grid-sweep-automated-search)**.
+
+---
+
 ## Next steps
 
 | If you want to… | Go to |
 |-----------------|-------|
 | **Learn concepts** before reading code | [docs/learn-before-you-code.md](docs/learn-before-you-code.md) |
 | **Run and compare experiments** | [docs/experiment-workflow.md](docs/experiment-workflow.md) |
+| **Grid sweep (JSON configs)** | [docs/experiment-workflow.md#grid-sweep-automated-search](docs/experiment-workflow.md#grid-sweep-automated-search) |
 | **Understand autograd** | [docs/autograd-deep-dive.md](docs/autograd-deep-dive.md) |
 | **Full reference** | [README.md](README.md) |
 | **All docs by persona** | [docs/README.md](docs/README.md) |

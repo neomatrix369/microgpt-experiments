@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections import Counter
 
+from mgpt.quality import compute_overall_quality_score
+
 # Longest allowed consecutive consonant run (English allows 4 in e.g. "twelfths").
 _MAX_CONSONANT_RUN = 4
 
@@ -205,17 +207,8 @@ def evaluate_semantic_quality(
             "tier3_nonsense_count": int(nonsense_results["nonsense_count"]),
             "tier3_nonsense_ratio": float(nonsense_results["nonsense_ratio"]),
             "tier3_examples": nonsense_results["nonsense_words"][:5],
-            "overall_quality_score": max(
-                0.0,
-                min(
-                    1.0,
-                    (
-                        0.0
-                        + 0.0
-                        + (1.0 - nonsense_results["nonsense_ratio"]) * 0.3
-                    )
-                    / 2.0,
-                ),
+            "overall_quality_score": compute_overall_quality_score(
+                0.0, 0.0, float(nonsense_results["nonsense_ratio"])
             ),
             "distribution_sum": float(nonsense_results["nonsense_ratio"]),
         }
@@ -239,10 +232,9 @@ def evaluate_semantic_quality(
     tier2_ratio = tier2_count / total if total else 0.0
     tier2_avg = sum(all_scores) / len(all_scores) if all_scores else 0.0
     real_ratio = len(real_words) / total if total else 0.0
-    overall = (
-        real_ratio * 1.0 + tier2_ratio * 0.7 + (1.0 - nonsense_results["nonsense_ratio"]) * 0.3
-    ) / 2.0
-    overall = max(0.0, min(1.0, overall))
+    overall = compute_overall_quality_score(
+        real_ratio, tier2_ratio, float(nonsense_results["nonsense_ratio"])
+    )
     return {
         "tier1_real_count": len(real_words),
         "tier1_real_ratio": real_ratio,
