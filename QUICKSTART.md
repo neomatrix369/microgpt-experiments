@@ -87,7 +87,7 @@ Outputs land in **`outputs/sweeps/0-smoke-test/`** (`sweep_summary.csv` with per
 |-----------------|-------|
 | **Learn concepts** before reading code | [docs/learn-before-you-code.md](docs/learn-before-you-code.md) |
 | **Run and compare experiments** | [docs/experiment-workflow.md](docs/experiment-workflow.md) |
-| **Grid sweep (JSON configs)** | [docs/experiment-workflow.md#grid-sweep-automated-search](docs/experiment-workflow.md#grid-sweep-automated-search) |
+| **Grid sweep (JSON configs)** | [docs/experiment-workflow.md#grid-sweep-automated-search](docs/experiment-workflow.md#grid-sweep-automated-search) · [experiments/configs/README.md](experiments/configs/README.md) |
 | **Understand autograd** | [docs/autograd-deep-dive.md](docs/autograd-deep-dive.md) |
 | **Full reference** | [README.md](README.md) |
 | **All docs by persona** | [docs/README.md](docs/README.md) |

@@ -2,11 +2,10 @@
 
 This guide is for **reading first**, before you open `microgpt.py` or `microgpt_updated.py`. It explains the ideas in everyday language, with small examples you can picture in your head.
 
-**Technical reference** (commands, file layout, config tables) stays in [`README.md`](../README.md).  
-**Fastest first run:** [`QUICKSTART.md`](../QUICKSTART.md). **All docs by persona:** [`docs/README.md`](./README.md).  
-**Run and compare experiments:** [`experiment-workflow.md`](./experiment-workflow.md).  
-**Autograd** (gradients, `Value`, `backward()`): [`autograd-deep-dive.md`](./autograd-deep-dive.md).  
-**Sample-quality details** (how tiers are scored): [`M2-semantic-quality.md`](./M2-semantic-quality.md).
+**Technical reference** (commands, file layout, config tables) stays in [`README.md`](../README.md).
+
+**Navigation:** [`docs/README.md`](./README.md) · [`QUICKSTART.md`](../QUICKSTART.md) · [`README.md`](../README.md)  
+**Related:** [autograd](./autograd-deep-dive.md) · [experiments](./experiment-workflow.md) · [quality tiers](./M2-semantic-quality.md) · [sweep configs](../experiments/configs/README.md)
 
 ---
 

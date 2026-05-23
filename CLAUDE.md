@@ -98,8 +98,9 @@ Run **`pytest`** from the repo root: `python -m pytest tests/ -q` (evaluation, q
 - **`docs/README.md`**: Documentation index by persona and task.
 - **`docs/learn-before-you-code.md`**: Beginner-friendly concepts and examples—read before diving into code.
 - **`docs/autograd-deep-dive.md`**: Autograd learning guide (`Value`, graph, `backward()`, worked examples, diagrams); read before `mgpt/value.py`.
-- **`docs/experiment-workflow.md`**: Train runs, save reports, compare with CLI or HTML; links to `example-experiments/`.
+- **`docs/experiment-workflow.md`**: Train runs, save reports, compare with CLI or HTML; grid sweep and run timing.
 - **`docs/M2-semantic-quality.md`**: Sample quality guide (semantic tier metrics; human-readable + implementation notes).
+- **`experiments/configs/README.md`**: Numbered JSON grid sweep configs (`0_sweep-smoke-test.json` … `4_sweep-full.json`).
 - **`CLAUDE.md`** (this file): project context for Claude Code and compatible assistants—read it when onboarding or before substantive edits.
 - **`AGENTS.md`**: short pointer for agent harnesses; it defers to `CLAUDE.md` for full detail.
 

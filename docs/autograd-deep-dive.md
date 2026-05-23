@@ -2,7 +2,10 @@
 
 How **automatic differentiation** works in microgpt: the `Value` class, the computation graph, `backward()`, and where it all connects to training.
 
-**Prerequisites:** skim [`learn-before-you-code.md`](./learn-before-you-code.md) for the big picture (loss, tokens, training loop). **Navigation:** [`docs/README.md`](./README.md).
+**Prerequisites:** skim [`learn-before-you-code.md`](./learn-before-you-code.md) for the big picture (loss, tokens, training loop).
+
+**Navigation:** [`docs/README.md`](./README.md) · [`QUICKSTART.md`](../QUICKSTART.md) · [`README.md`](../README.md)  
+**Related:** [experiments](./experiment-workflow.md) · [quality tiers](./M2-semantic-quality.md) · [sweep configs](../experiments/configs/README.md)
 
 **Read this doc** before [`mgpt/value.py`](../mgpt/value.py) if autograd is new; read **alongside** the file if you learn by doing.
 
@@ -389,7 +392,9 @@ The project follows the Karpathy microGPT style: the source **is** the lesson. T
 
 ## Further reading
 
+- [`docs/README.md`](./README.md) — documentation index by persona
+- [`QUICKSTART.md`](../QUICKSTART.md) — minimal first run
 - [`learn-before-you-code.md`](./learn-before-you-code.md) — tokens, loss, temperature, sample quality
-- [`experiment-workflow.md`](./experiment-workflow.md) — train runs and compare reports
+- [`experiment-workflow.md`](./experiment-workflow.md) — train runs, grid sweep, compare reports
 - [`M2-semantic-quality.md`](./M2-semantic-quality.md) — how generated names are scored (separate from autograd)
 - [Karpathy microGPT blog](https://karpathy.github.io/2026/02/12/microgpt/) — theory and motivation

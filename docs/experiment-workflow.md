@@ -1,6 +1,9 @@
 # Experiment workflow
 
-One linear guide: **train runs → save reports → compare results**. For concepts (loss, tiers, autograd), see [`learn-before-you-code.md`](./learn-before-you-code.md). For CLI flag tables, see [`README.md`](../README.md). **Doc index:** [`docs/README.md`](./README.md). **First run:** [`QUICKSTART.md`](../QUICKSTART.md).
+One linear guide: **train runs → save reports → compare results**.
+
+**Navigation:** [`docs/README.md`](./README.md) · [`QUICKSTART.md`](../QUICKSTART.md) · [`README.md`](../README.md)  
+**Related:** [concepts](./learn-before-you-code.md) · [autograd](./autograd-deep-dive.md) · [quality tiers](./M2-semantic-quality.md) · [sweep configs](../experiments/configs/README.md)
 
 ---
 
@@ -18,13 +21,15 @@ Each training run produces a **run report** (`outputs/output_*.txt`): config, fi
 flowchart LR
   subgraph train [Train]
     CLI["microgpt_updated.py\n+ CLI flags"]
-    Out["outputs/output_*.txt"]
+    Sweep["experiments/sweep.py\n+ JSON config"]
+    Out["outputs/output_*.txt\nor sweeps/.../"]
   end
   subgraph compare [Compare]
     Diff["compare_run_reports.py\n2 files"]
     HTML["report_generator.py\n2+ files"]
   end
   CLI --> Out
+  Sweep --> Out
   Out --> Diff
   Out --> HTML
 ```
@@ -228,7 +233,10 @@ python experiments/report_generator.py \
 
 ## Related docs
 
+- [`docs/README.md`](./README.md) — documentation index by persona
+- [`QUICKSTART.md`](../QUICKSTART.md) — minimal first run
 - [`learn-before-you-code.md`](./learn-before-you-code.md) — what loss, samples, and tiers mean
-- [`M2-semantic-quality.md`](./M2-semantic-quality.md) — how generated names are scored
 - [`autograd-deep-dive.md`](./autograd-deep-dive.md) — how training computes gradients
+- [`M2-semantic-quality.md`](./M2-semantic-quality.md) — scoring, `mgpt/quality.py`, extending metrics
+- [`experiments/configs/README.md`](../experiments/configs/README.md) — numbered sweep JSON files
 - [`README.md`](../README.md) — architecture, config tables, example artifact excerpts

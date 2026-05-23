@@ -8,7 +8,7 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 
 **There is no `requirements.txt` or `pyproject.toml` on purpose:** only Python 3.
 
-**Jump to:** [Who is this for?](#who-is-this-for) | [Quickstart](QUICKSTART.md) | [Docs index](docs/README.md) | [Run](#quick-start) | [Experiments](#run-experiments-examples) | [Compare reports](#run-reports) | [Configuration](#configuration) | [Architecture](#architecture-high-level)
+**Jump to:** [Who is this for?](#who-is-this-for) | [Quickstart](QUICKSTART.md) | [Docs index](docs/README.md) | [Run](#quick-start) | [Experiments](#run-experiments-examples) | [Grid sweep](#grid-sweep-automated-search) | [Compare reports](#run-reports) | [Configuration](#configuration) | [Architecture](#architecture-high-level)
 
 ---
 
@@ -230,8 +230,9 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`docs/README.md`** | **Documentation index** — all guides by persona and task. |
 | **`docs/learn-before-you-code.md`** | **Start here for concepts** — plain-language primer with examples before reading code. |
 | **`docs/autograd-deep-dive.md`** | **Autograd learning guide** — `Value`, graph, `backward()`, worked examples, diagrams; read before `mgpt/value.py`. |
-| **`docs/experiment-workflow.md`** | **Experiment recipe** — train runs, save reports, compare CLI vs HTML; links to `example-experiments/`. |
-| **`docs/M2-semantic-quality.md`** | **Sample quality guide** — how generated names are scored (tiers, metrics, commands). |
+| **`docs/experiment-workflow.md`** | **Experiment recipe** — train runs, save reports, compare CLI vs HTML; grid sweep and run timing. |
+| **`experiments/configs/README.md`** | **Grid sweep configs** — numbered JSON files (`0_sweep-smoke-test.json` … `4_sweep-full.json`). |
+| **`docs/M2-semantic-quality.md`** | **Sample quality guide** — tiers, `mgpt/quality.py`, extending scoring, sweep ranking. |
 | **`CLAUDE.md`** | Maintainer / assistant context: conventions, internals, which file to edit. |
 | **`AGENTS.md`** | Short pointer to `README.md` / `CLAUDE.md` for agent harnesses. |
 | **`example-experiments/`** | Checked-in **sample run reports**, a **`compare_run_reports.py`** transcript, and an **HTML comparison** for the **4-head vs 1-head @ 1000 steps** pair — see [Example artifacts (preview)](#example-artifacts-preview). Your own runs still land in gitignored **`outputs/`**. |
@@ -556,6 +557,7 @@ For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`]
 - [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) — autograd: `Value`, graph, backward, worked examples
 - [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) — train, compare runs, HTML reports
 - [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) — sample quality tiers and metrics
+- [`experiments/configs/README.md`](./experiments/configs/README.md) — numbered grid sweep JSON configs (`0_` … `4_`)
 - [`CLAUDE.md`](./CLAUDE.md) — file layout and conventions for contributors
 
 **External**

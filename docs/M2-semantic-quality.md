@@ -2,7 +2,12 @@
 
 **Sample quality guide** — heuristic scoring of generated names after training.
 
-After training, **`microgpt_updated.py`** generates 20 strings and scores them. This page explains **what those scores mean** and how the code fits together. For the big-picture concepts (loss, temperature, attention), start with **[`learn-before-you-code.md`](./learn-before-you-code.md)**. **Navigation:** [`docs/README.md`](./README.md).
+After training, **`microgpt_updated.py`** generates 20 strings and scores them. This page explains **what those scores mean** and how the code fits together.
+
+**Navigation:** [`docs/README.md`](./README.md) · [`QUICKSTART.md`](../QUICKSTART.md) · [`README.md`](../README.md)  
+**Related:** [concepts](./learn-before-you-code.md) · [experiments](./experiment-workflow.md) · [autograd](./autograd-deep-dive.md) · [sweep configs](../experiments/configs/README.md)
+
+For the big-picture concepts (loss, temperature, attention), start with **[`learn-before-you-code.md`](./learn-before-you-code.md)**.
 
 ---
 
@@ -234,3 +239,15 @@ python microgpt_updated.py --num-steps 500 --temperature 0.7 \
 - **Compare / HTML** list `HEAD_DIM` after `N_EMBD` and `N_HEAD` and label it as calculated (`N_EMBD // N_HEAD`).
 - **Run timing:** authoritative timestamps live in **`--- Run timing ---`** (UTC + local); filename `_YYYYMMDD_HHMMSS` is for uniqueness. See **[experiment-workflow.md → Run timing](./experiment-workflow.md#run-timing-and-progress)**.
 - **Hypothesis testing (e.g. `N_HEAD` × `NUM_STEPS`):** compare `OVERALL_QUALITY_SCORE`, tier ratios, and sample lines across `outputs/output_*.txt` or the HTML summary—not training loss alone.
+
+---
+
+## Related docs
+
+- [`docs/README.md`](./README.md) — documentation index by persona
+- [`QUICKSTART.md`](../QUICKSTART.md) — minimal first run
+- [`learn-before-you-code.md`](./learn-before-you-code.md) — concepts before code
+- [`experiment-workflow.md`](./experiment-workflow.md) — train, grid sweep, compare
+- [`autograd-deep-dive.md`](./autograd-deep-dive.md) — gradients and `Value`
+- [`experiments/configs/README.md`](../experiments/configs/README.md) — sweep JSON configs
+- [`README.md`](../README.md) — full reference
