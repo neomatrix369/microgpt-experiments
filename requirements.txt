@@ -1,4 +1,4 @@
-# Optional dev dependencies — test suite only.
-# Training, generation, sweeps, and report tools use Python 3 stdlib only.
+# Train and generate: Python 3 only.
+# Tests: optional — pip install -r requirements.txt
 pytest>=8.0
 pytest-cov>=7.0

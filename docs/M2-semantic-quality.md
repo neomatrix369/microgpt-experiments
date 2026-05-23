@@ -176,7 +176,7 @@ Full CLI and workflow map: **`README.md`** → *How to use microgpt_updated.py* 
 python microgpt_updated.py
 python microgpt_updated.py --help
 
-# Tests (full suite recommended; prints coverage summary at end)
+# Tests: optional — pip install -r requirements.txt (train/generate: Python 3 only)
 pip install -r requirements.txt
 python -m pytest
 

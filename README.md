@@ -6,9 +6,7 @@ Train a tiny **character-level GPT** in pure Python—no PyTorch, no NumPy, only
 
 Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and [Karpathy’s microGPT write-up](https://karpathy.github.io/2026/02/12/microgpt/).
 
-**Runtime:** Python 3 standard library only — no install needed to train or generate.
-
-**Optional tests:** [`requirements.txt`](./requirements.txt) lists `pytest` and `pytest-cov` (coverage summary at end of `python -m pytest`). Not required for the demo itself.
+**Train and generate:** Python 3 only. **Tests:** optional — [`pip install -r requirements.txt`](./requirements.txt) then `python -m pytest` (coverage summary at end; no threshold gate).
 
 **Jump to:** [Who is this for?](#who-is-this-for) | [Quickstart](QUICKSTART.md) | [Docs index](docs/README.md) | [Run](#quick-start) | [Experiments](#run-experiments-examples) | [Grid sweep](#grid-sweep-automated-search) | [Compare reports](#run-reports) | [Configuration](#configuration) | [Architecture](#architecture-high-level)
 
@@ -182,14 +180,12 @@ python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --
 
 Each sweep writes **`sweep_summary.csv`** (per-run timing columns: UTC/local start/end, duration, timezone), **`sweep_timing.txt`** (whole-grid wall clock), per-run **`output_*.txt`** reports, and an optional HTML comparison under **`outputs/sweeps/<order>-<name>/`**. Full recipe: **[`docs/experiment-workflow.md` → Grid sweep](./docs/experiment-workflow.md#grid-sweep-automated-search)** · config index: **[`experiments/configs/README.md`](./experiments/configs/README.md)**.
 
-**Tests** (optional — install dev deps from [`requirements.txt`](./requirements.txt); not needed to train or generate):
+**Tests** — train and generate need Python 3 only; for the suite:
 
 ```bash
 pip install -r requirements.txt
 python -m pytest
 ```
-
-Finishes with a **coverage summary** for `mgpt/`, `run_report/`, and `experiments/` (configured in `pytest.ini` and `.coveragerc`; informational only — no threshold gate).
 
 ---
 
@@ -223,7 +219,7 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`mgpt/`** | Package: `Value`, tensor ops, transformer step `gpt()`, `load_dataset` / `build_tokeniser`, **`evaluation.py`** (tier heuristics), **`quality.py`** (overall score + baseline compare + sweep ranking), **`experiment.py`** (train/generate API). Stdlib only. |
 | **`run_report/`** | Package: parse/compare saved reports (`parse.py`), narrative (`narrative.py`), **`paths.py`** (`DEFAULT_RUN_REPORT_DIR`, **`run_reports_dir(repo_root)`** — shared location for `outputs/`), full report assembly (`builder.py`), **text loss visuals** (`text_loss_plot.py`), **`timing.py`** (UTC + local ISO, duration, live elapsed/ETA, sweep timing file). Used by the entry script, `mgpt/experiment.py`, `annotate_run_reports.py`, `compare_run_reports.py`, and **`experiments/report_generator.py`**. |
 | **`experiments/`** | Optional tooling: **`sweep.py`** + **`sweep_grid.py`** (numbered JSON grid search under **`configs/`** — `0_sweep-smoke-test.json` … `4_sweep-full.json`; ranks by `OVERALL_QUALITY_SCORE`; writes timing to CSV and `sweep_timing.txt`), **`report_generator.py`** (HTML comparison with timing columns). Stdlib only. |
-| **`requirements.txt`** | Optional **test-only** deps (`pytest`, `pytest-cov`). Runtime code stays stdlib-only. |
+| **`requirements.txt`** | **Tests:** optional — `pytest`, `pytest-cov`. Train/generate: Python 3 only. |
 | **`pytest.ini`** / **`.coveragerc`** | Test runner config; terminal coverage summary after `python -m pytest`. |
 | **`tests/`** | `pytest` suite: evaluation, quality, experiment API, sweep grid, run timing, `run_report` paths, text loss plot helpers, HTML report generator. |
 | **`microgpt.py`** | Compact version: one continuous script with module-level state; closest to a “single-file walkthrough.” |
@@ -541,14 +537,14 @@ python compare_run_reports.py outputs/output_….txt outputs/output_….txt
 
 ## Developing further
 
-- **Dependency policy**: Keep **runtime** code **stdlib-only**. Optional third-party packages belong in [`requirements.txt`](./requirements.txt) for the test suite only unless maintainers explicitly broaden that.
+- **Dependency policy**: **Train and generate:** Python 3 only. **Tests:** optional — [`requirements.txt`](./requirements.txt). Keep runtime code stdlib-only unless maintainers explicitly broaden that.
 - **Where to edit**: Use **`microgpt_updated.py`** for the training/generation orchestration and **`mgpt/`** for model or autograd internals; keep **`microgpt.py`** aligned with the “one file narrative” when possible. Report layout and parsing live in **`run_report/`**.
 - **Run report text**: The human-readable story in `--- What this run is ---` is implemented in **`run_report/narrative.py`** (`format_run_narrative_lines`); `annotate_run_reports.py` imports it so backfilled files match new runs. Config and compare/HTML tables keep **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** (`run_report.parse._CFG_DISPLAY_ORDER`).
 - **Comparing reports**: After two runs, `python compare_run_reports.py outputs/output_….txt outputs/output_….txt` summarizes config / loss / sample diffs and optional loss-history text graphs (see [Comparing two reports](#comparing-two-reports)).
 - **Batch HTML summaries**: See [HTML comparison (multi-run)](#html-comparison-multi-run).
 - **Educational comments**: The refactored file includes explanatory comments; avoid stripping them without an explicit request.
 - **KV cache and training**: During training, cached keys/values are part of the live graph for that forward (they are not treated as detached inference-only tensors). Understand this before changing caching behavior.
-- **Testing**: From the repo root, run `pip install -r requirements.txt` then `python -m pytest`. Prints a coverage summary when the suite finishes. Target modules: `test_evaluation`, `test_quality`, `test_experiment_config`, `test_sweep_grid`, `test_timing`, `test_text_loss_plot`, `test_report_generator`, `test_paths`. See [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) for the semantic-quality / run-report workstream notes.
+- **Testing**: **Train and generate:** Python 3 only. **Tests:** optional — `pip install -r requirements.txt` then `python -m pytest`. Target modules: `test_evaluation`, `test_quality`, `test_experiment_config`, `test_sweep_grid`, `test_timing`, `test_text_loss_plot`, `test_report_generator`, `test_paths`. See [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) for the semantic-quality / run-report workstream notes.
 
 For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`](./CLAUDE.md)**.
 

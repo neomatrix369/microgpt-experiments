@@ -2,7 +2,7 @@
 
 A minimal, dependency-free **character-level GPT** in pure Python: scalar autograd (`Value`), a tiny transformer (embeddings, multi-head self-attention, MLP, RMSNorm), Adam, and name generation. Based on the [microGPT / makemore](https://github.com/karpathy/makemore) style exercises ([write-up](https://karpathy.github.io/2026/02/12/microgpt/)).
 
-**Runtime** is stdlib-only (Python 3). **`requirements.txt`** lists optional **test** deps (`pytest`, `pytest-cov`); no `pyproject.toml`.
+**Train and generate:** Python 3 only. **Tests:** optional — [`requirements.txt`](./requirements.txt) (`pytest`, `pytest-cov`; no `pyproject.toml`).
 
 ## Repository layout
 
@@ -17,7 +17,7 @@ A minimal, dependency-free **character-level GPT** in pure Python: scalar autogr
 | `experiments/sweep.py` | Grid-search CLI: numbered JSON configs in **`experiments/configs/`** (`0_sweep-smoke-test.json` … `4_sweep-full.json`); calls **`mgpt.experiment.run_experiment()`**, writes **`sweep_summary.csv`** (per-run timing columns) and **`sweep_timing.txt`** (whole-grid wall clock) under **`outputs/sweeps/<order>-<name>/`**, ranks by **`OVERALL_QUALITY_SCORE`**. Console shows sweep elapsed/ETA. **`--list-configs`**, **`--dry-run`**, **`--summarize-only`**, **`--html`**. Grid expansion helpers in **`experiments/sweep_grid.py`**. |
 | `experiments/configs/` | Numbered sweep JSON files + **`README.md`** (recommended run order). |
 | `experiments/report_generator.py` | `argparse` CLI: reads one or more `output_*.txt` files (default: glob under `outputs/` at repo root), writes HTML (`-o`, default `outputs/comparison_report.html`): shared/varying training config (same key order as `compare_run_reports.py`: **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**, then the rest; `HEAD_DIM` annotated as calculated), quality table, **run timing** (duration, start/end UTC and local when present), aligned samples (2+ runs), loss ASCII (`--loss-bins`, `--loss-height`), tier bars. |
-| `requirements.txt` | Optional test-only deps (`pytest`, `pytest-cov`). Training/generation need no pip install. |
+| `requirements.txt` | **Tests:** optional — `pytest`, `pytest-cov`. Train/generate: Python 3 only. |
 | `pytest.ini` / `.coveragerc` | Test runner + terminal coverage summary after `python -m pytest`. |
 | `tests/` | `pytest` tests for evaluation, quality, experiment API, sweep grid, run timing, paths, report builder/parse round-trip, loss-plot helpers, and `report_generator` HTML output. |
 | `annotate_run_reports.py` | Inserts the same `--- What this run is ---` narrative into **existing** `output_*.txt` reports (stdlib-only backfill for past experiments). |
@@ -91,7 +91,7 @@ When adding features, keep **runtime** code **stdlib-only** unless maintainers e
 
 ## Testing
 
-Run **`pytest`** from the repo root: `pip install -r requirements.txt` then `python -m pytest` (`pytest.ini` + `.coveragerc` print a terminal **coverage summary** for `mgpt/`, `run_report/`, `experiments/` — informational, no fail threshold). Covers evaluation, quality hub, experiment API, sweep grid, **run timing**, paths, text loss plots, HTML report generator. See `docs/M2-semantic-quality.md` for the semantic-quality slice log.
+**Train and generate:** Python 3 only. **Tests:** optional — `pip install -r requirements.txt` then `python -m pytest` (`pytest.ini` + `.coveragerc`; coverage summary for `mgpt/`, `run_report/`, `experiments/` — informational, no fail threshold). See `docs/M2-semantic-quality.md` for the semantic-quality slice log.
 
 ## Git and docs
 

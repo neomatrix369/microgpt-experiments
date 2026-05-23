@@ -4,6 +4,8 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 
 **Repo entry:** [README.md](../README.md) · **Fastest run:** [QUICKSTART.md](../QUICKSTART.md)
 
+**Train and generate:** Python 3 only. **Tests:** optional — `pip install -r requirements.txt`.
+
 > **Who is this for?** Same personas as [README → Who is this for?](../README.md#who-is-this-for) — this page is the **doc map**; the README is the full reference.
 
 ---
