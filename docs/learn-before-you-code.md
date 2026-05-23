@@ -133,15 +133,29 @@ You do not need to derive attention to use this repo. Here is a **map** of the p
 
 Defaults live at the top of `microgpt_updated.py`. Override from the shell with `--help` flags.
 
-| Knob | Default | Think of it as… |
-|------|---------|------------------|
-| `NUM_STEPS` | 1000 | How many flashcard rounds (more → better fit, slower). |
-| `N_EMBD` | 16 | How wide each character’s hidden vector is (bigger → slower, more capacity). |
-| `N_HEAD` | 4 | How many parallel attention mixes (see above). |
-| `BLOCK_SIZE` | 16 | Longest line the model can see at once (including BOS). |
-| `LEARNING_RATE` | 0.01 | Step size for weight updates (with decay over the run). |
-| `TEMPERATURE` | 0.5 | Randomness when sampling names after training. |
-| `SEED` | 42 | Reproducible randomness for init and sampling. |
+**Units** (same labels appear in source comments and run-report glossaries):
+
+| Unit | Meaning |
+|------|---------|
+| **layers** | Count of stacked transformer blocks (`N_LAYER`) |
+| **dimensions** | Length of a hidden / embedding vector (`N_EMBD`, `HEAD_DIM`) |
+| **heads** | Count of parallel attention mixes (`N_HEAD`) |
+| **tokens** | Context positions the model can see at once (`BLOCK_SIZE`) |
+| **steps** | Optimizer updates during training (`NUM_STEPS`) |
+| **dimensionless** | Pure numbers with no physical unit (learning rate, Adam betas, temperature, seed) |
+
+| Knob | Default | Unit | Think of it as… |
+|------|---------|------|------------------|
+| `NUM_STEPS` | 1000 | steps | How many flashcard rounds (more → better fit, slower). |
+| `N_EMBD` | 16 | dimensions | How wide each character’s hidden vector is (bigger → slower, more capacity). |
+| `N_HEAD` | 4 | heads | How many parallel attention mixes (see above). |
+| `HEAD_DIM` | `N_EMBD // N_HEAD` | dimensions | Per-head subspace width (derived, not swept separately). |
+| `BLOCK_SIZE` | 16 | tokens | Longest line the model can see at once (including BOS). |
+| `LEARNING_RATE` | 0.01 | dimensionless | Step size for weight updates (with decay over the run). |
+| `TEMPERATURE` | 0.5 | dimensionless | Randomness when sampling names after training. |
+| `SEED` | 42 | dimensionless | Reproducible randomness for init and sampling. |
+
+For `N_LAYER`, Adam betas (`BETA1`, `BETA2`), and `EPS_ADAM`, see the [README configuration table](../README.md#microgpt_updatedpy-recommended-reference) (same unit labels).
 
 **Rule of thumb:** if names in your file are longer than `BLOCK_SIZE`, increase `BLOCK_SIZE` or shorten lines.
 

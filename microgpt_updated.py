@@ -50,61 +50,72 @@ _DEFAULT_RUN_REPORTS_DIR = run_reports_dir(_MICROGPT_REPO_ROOT)
 # cost linearly more here because our scalar autograd is O(nodes) per
 # backward pass and each layer adds a fixed number of nodes.
 # tunable parameter
+# Unit: layers (count).
 N_LAYER = 1
 
 # Width of the network (embedding dimension). Each token and position is
 # represented as a vector of this length. 16 is tiny but trains fast in
 # pure Python and is enough to learn spelling patterns in short names.
 # tunable parameter
+# Unit: dimensions.
 N_EMBD = 16
 
 # Number of attention heads. Multi-head attention lets the model attend to
 # different positional relationships in parallel. 4 heads of dimension 4
 # (16 / 4) is a reasonable split for this embedding size.
 # tunable parameter (fixed by the embedding size and number of heads)
+# Unit: heads (count).
 N_HEAD = 4
 
 # Derived dimension of each attention head (N_EMBD // N_HEAD).
+# Unit: dimensions.
 HEAD_DIM = N_EMBD // N_HEAD
 
 # Maximum context length of the attention window. The longest name in the
 # dataset is 15 characters, so 16 covers every example with room for BOS.
 # tunable parameter (fixed for this dataset)
+# Unit: tokens (positions).
 BLOCK_SIZE = 16
 
 # Initial learning rate for Adam. 0.01 is on the high side for larger
 # models but works well here because the model is small and we apply
 # linear decay, so the effective rate drops to zero by the final step.
+# Unit: dimensionless (scalar step scale; multiplied by linear decay).
 LEARNING_RATE = 0.01
 
 # Adam first-moment decay (beta1). Controls how much the optimiser trusts
 # the current gradient vs the running average. Standard default is 0.9;
 # 0.85 forgets faster, which helps on a tiny noisy dataset where stale
 # momentum would overshoot.
+# Unit: dimensionless (decay factor in (0, 1)).
 BETA1 = 0.85
 
 # Adam second-moment decay (beta2). Controls the running average of
 # squared gradients used to scale the step size per-parameter. 0.99 is
 # slightly more aggressive than the typical 0.999, giving faster
 # adaptation at the cost of noisier variance estimates (fine here).
+# Unit: dimensionless (decay factor in (0, 1)).
 BETA2 = 0.99
 
 # Adam epsilon. Added to the denominator to prevent division by zero when
 # a parameter's gradient history is near-zero. 1e-8 is the standard
 # default.
+# Unit: dimensionless.
 EPS_ADAM = 1e-8
 
 # Total number of training steps. Each step processes one document. 1000
 # is enough for convergence on this dataset (32k names, vocab of 27
 # characters).
+# Unit: steps (one forward-backward + Adam update per step).
 NUM_STEPS = 1000
 
 # Sampling temperature in (0, 1]. Lower values sharpen the distribution
 # (more conservative, common names), higher values flatten it (more
 # creative, weirder names). 0.5 is a good middle ground.
+# Unit: dimensionless (logits divided by this before softmax).
 TEMPERATURE = 0.5
 
-SEED = 42
+SEED = 42  # Unit: dimensionless (integer RNG seed for init and sampling).
 NAMES_URL = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
 INPUT_PATH = "input.txt"
 
@@ -127,16 +138,46 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         )
     )
     g = p.add_argument_group("hyperparameters (defaults match this file)")
-    g.add_argument("--n-layer", type=int, default=N_LAYER, metavar="N")
-    g.add_argument("--n-embd", type=int, default=N_EMBD, metavar="N")
-    g.add_argument("--n-head", type=int, default=N_HEAD, metavar="N")
-    g.add_argument("--block-size", type=int, default=BLOCK_SIZE, metavar="N")
-    g.add_argument("--num-steps", type=int, default=NUM_STEPS, metavar="N")
-    g.add_argument("--temperature", type=float, default=TEMPERATURE, metavar="T")
-    g.add_argument("--seed", type=int, default=SEED, metavar="N")
-    g.add_argument("--learning-rate", type=float, default=LEARNING_RATE, metavar="LR")
-    g.add_argument("--beta1", type=float, default=BETA1)
-    g.add_argument("--beta2", type=float, default=BETA2)
+    g.add_argument(
+        "--n-layer", type=int, default=N_LAYER, metavar="N",
+        help="transformer depth (unit: layers)",
+    )
+    g.add_argument(
+        "--n-embd", type=int, default=N_EMBD, metavar="N",
+        help="hidden / embedding width (unit: dimensions)",
+    )
+    g.add_argument(
+        "--n-head", type=int, default=N_HEAD, metavar="N",
+        help="attention head count (unit: heads; N_EMBD must be divisible)",
+    )
+    g.add_argument(
+        "--block-size", type=int, default=BLOCK_SIZE, metavar="N",
+        help="max context length (unit: tokens / positions)",
+    )
+    g.add_argument(
+        "--num-steps", type=int, default=NUM_STEPS, metavar="N",
+        help="training optimizer steps (unit: steps)",
+    )
+    g.add_argument(
+        "--temperature", type=float, default=TEMPERATURE, metavar="T",
+        help="sampling temperature (unit: dimensionless)",
+    )
+    g.add_argument(
+        "--seed", type=int, default=SEED, metavar="N",
+        help="RNG seed (unit: dimensionless integer)",
+    )
+    g.add_argument(
+        "--learning-rate", type=float, default=LEARNING_RATE, metavar="LR",
+        help="base Adam learning rate (unit: dimensionless)",
+    )
+    g.add_argument(
+        "--beta1", type=float, default=BETA1,
+        help="Adam beta1 (unit: dimensionless decay factor)",
+    )
+    g.add_argument(
+        "--beta2", type=float, default=BETA2,
+        help="Adam beta2 (unit: dimensionless decay factor)",
+    )
     g.add_argument(
         "--input",
         default=INPUT_PATH,

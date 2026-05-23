@@ -453,25 +453,25 @@ python microgpt_updated.py --n-head 4 --suite-index 2 --suite-total 2 --suite-no
 
 ### `microgpt_updated.py` (recommended reference)
 
-| Symbol | Default | Role |
-|--------|---------|------|
-| `N_LAYER` | `1` | Transformer depth |
-| `N_EMBD` | `16` | Model width / embedding dimension |
-| `N_HEAD` | `4` | Attention heads (CLI `--n-head`). |
-| `HEAD_DIM` | `N_EMBD // N_HEAD` | Per-head width (derived); in source and reports it always **follows** `N_EMBD` and `N_HEAD`. |
-| `BLOCK_SIZE` | `16` | Max context length (positions 0 … `BLOCK_SIZE - 1`) |
-| `LEARNING_RATE` | `0.01` | Base Adam step size (scaled by linear decay) |
-| `BETA1` | `0.85` | Adam first-moment decay |
-| `BETA2` | `0.99` | Adam second-moment decay |
-| `EPS_ADAM` | `1e-8` | Adam epsilon |
-| `NUM_STEPS` | `1000` | Training steps (one random document per step, modulo dataset size) |
-| `TEMPERATURE` | `0.5` | Sampling temperature for generation |
-| `SEED` | `42` | RNG seed |
-| `NAMES_URL` | makemore `names.txt` | Download URL if `input.txt` missing |
-| `INPUT_PATH` | `"input.txt"` | Training file path |
-| `EXPERIMENT_SUITE_INDEX` | `None` | Optional 1-based index of this run in a multi-run sweep (see `EXPERIMENT_SUITE_TOTAL`). |
-| `EXPERIMENT_SUITE_TOTAL` | `None` | Optional total number of runs; with `EXPERIMENT_SUITE_INDEX` set, the report prints `Experiment: i / n`. |
-| `EXPERIMENT_SUITE_NOTE` | `None` | Optional one-line description (e.g. what is being swept), shown as `Suite note: …`. The `--- Experiment suite ---` block is omitted only when **all three** of these are `None`. |
+| Symbol | Default | Unit | Role |
+|--------|---------|------|------|
+| `N_LAYER` | `1` | layers | Transformer depth |
+| `N_EMBD` | `16` | dimensions | Model width / embedding dimension |
+| `N_HEAD` | `4` | heads | Attention heads (CLI `--n-head`). |
+| `HEAD_DIM` | `N_EMBD // N_HEAD` | dimensions | Per-head width (derived); in source and reports it always **follows** `N_EMBD` and `N_HEAD`. |
+| `BLOCK_SIZE` | `16` | tokens | Max context length (positions 0 … `BLOCK_SIZE - 1`) |
+| `LEARNING_RATE` | `0.01` | dimensionless | Base Adam step size (scaled by linear decay) |
+| `BETA1` | `0.85` | dimensionless | Adam first-moment decay |
+| `BETA2` | `0.99` | dimensionless | Adam second-moment decay |
+| `EPS_ADAM` | `1e-8` | dimensionless | Adam epsilon |
+| `NUM_STEPS` | `1000` | steps | Training steps (one random document per step, modulo dataset size) |
+| `TEMPERATURE` | `0.5` | dimensionless | Sampling temperature for generation |
+| `SEED` | `42` | dimensionless | RNG seed |
+| `NAMES_URL` | makemore `names.txt` | URL | Download URL if `input.txt` missing |
+| `INPUT_PATH` | `"input.txt"` | path | Training file path |
+| `EXPERIMENT_SUITE_INDEX` | `None` | — | Optional 1-based index of this run in a multi-run sweep (see `EXPERIMENT_SUITE_TOTAL`). |
+| `EXPERIMENT_SUITE_TOTAL` | `None` | — | Optional total number of runs; with `EXPERIMENT_SUITE_INDEX` set, the report prints `Experiment: i / n`. |
+| `EXPERIMENT_SUITE_NOTE` | `None` | — | Optional one-line description (e.g. what is being swept), shown as `Suite note: …`. The `--- Experiment suite ---` block is omitted only when **all three** of these are `None`. |
 
 ### `microgpt.py` (compact script)
 

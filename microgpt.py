@@ -72,11 +72,11 @@ class Value:
                 child.grad += local_grad * v.grad
 
 # Initialize the parameters, to store the knowledge of the model
-n_layer = 1     # depth of the transformer neural network (number of layers)
-n_embd = 16     # width of the network (embedding dimension)
-n_head = 4      # number of attention heads
-head_dim = n_embd // n_head # derived dimension of each head (follows n_embd and n_head)
-block_size = 16 # maximum context length of the attention window (note: the longest name is 15 characters)
+n_layer = 1     # depth of the transformer neural network (number of layers); unit: layers
+n_embd = 16     # width of the network (embedding dimension); unit: dimensions
+n_head = 4      # number of attention heads; unit: heads
+head_dim = n_embd // n_head  # derived dimension of each head (follows n_embd and n_head); unit: dimensions
+block_size = 16 # maximum context length of the attention window (note: the longest name is 15 characters); unit: tokens
 matrix = lambda nout, nin, std=0.08: [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
 state_dict = {'wte': matrix(vocab_size, n_embd), 'wpe': matrix(block_size, n_embd), 'lm_head': matrix(vocab_size, n_embd)}
 for i in range(n_layer):
@@ -144,12 +144,12 @@ def gpt(token_id, pos_id, keys, values):
     return logits
 
 # Let there be Adam, the blessed optimizer and its buffers
-learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8
+learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8  # unit: dimensionless
 m = [0.0] * len(params) # first moment buffer
 v = [0.0] * len(params) # second moment buffer
 
 # Repeat in sequence
-num_steps = 1000 # number of training steps
+num_steps = 1000  # number of training steps; unit: steps
 for step in range(num_steps):
 
     # Take single document, tokenize it, surround it with BOS special token on both sides
@@ -184,7 +184,7 @@ for step in range(num_steps):
     print(f"step {step+1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end='\r')
 
 # Inference: may the model babble back to us
-temperature = 0.5 # in (0, 1], control the "creativity" of generated text, low to high
+temperature = 0.5  # in (0, 1], control the "creativity" of generated text, low to high; unit: dimensionless
 print("\n--- inference (new, hallucinated names) ---")
 for sample_idx in range(20):
     keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
