@@ -1,0 +1,25 @@
+{
+  "order": 2,
+  "name": "arch",
+  "suite_note": "architecture sweep (n_layer x n_embd x n_head)",
+  "output_dir": "outputs/sweeps/2-arch",
+  "baseline": {
+    "overall_quality_score": 0.5825,
+    "tier1_real_ratio": 0.55,
+    "tier2_plausible_ratio": 0.45,
+    "tier3_nonsense_ratio": 0.0
+  },
+  "fixed": {
+    "block_size": 16,
+    "num_steps": 1000,
+    "temperature": 0.5,
+    "seed": 42,
+    "learning_rate": 0.01,
+    "input_path": "input.txt"
+  },
+  "grid": {
+    "n_layer": [1, 2],
+    "n_embd": [8, 16],
+    "n_head": [1, 2, 4]
+  }
+}

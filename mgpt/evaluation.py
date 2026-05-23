@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from collections import Counter
 
+from mgpt.quality import compute_overall_quality_score
+
+PLAUSIBILITY_THRESHOLD = 0.6
+
 # Longest allowed consecutive consonant run (English allows 4 in e.g. "twelfths").
 _MAX_CONSONANT_RUN = 4
 
@@ -73,20 +77,6 @@ def evaluate_sample_quality(samples: list[str], corpus_docs: list[str]) -> dict[
     }
 
 
-def count_real_words(samples: list[str], training_corpus: list[str]) -> dict[str, float | list[str]]:
-    corpus_set = _normalized_corpus_set(training_corpus)
-    real_words: list[str] = []
-    for sample in samples:
-        if sample.lower().strip() in corpus_set:
-            real_words.append(sample)
-    n = len(samples)
-    return {
-        "real_word_count": len(real_words),
-        "real_word_ratio": len(real_words) / n if n else 0.0,
-        "real_words": real_words,
-    }
-
-
 def is_pronounceable(word: str) -> bool:
     if not word:
         return False
@@ -129,38 +119,6 @@ def score_plausibility(word: str, training_corpus: list[str]) -> float:
     )
 
 
-def classify_plausible_words(
-    samples: list[str],
-    training_corpus: list[str],
-    plausibility_threshold: float = 0.6,
-) -> dict[str, float | list[tuple[str, float]]]:
-    if not training_corpus:
-        n = len(samples)
-        return {
-            "plausible_count": 0,
-            "plausible_ratio": 0.0,
-            "plausible_words": [],
-            "avg_plausibility": 0.0,
-        }
-    corpus_set = _normalized_corpus_set(training_corpus)
-    avg = _avg_corpus_length(training_corpus)
-    big = _corpus_bigrams(training_corpus)
-    plausible: list[tuple[str, float]] = []
-    scores: list[float] = []
-    for sample in samples:
-        score = _score_plausibility_impl(sample, avg, big)
-        scores.append(score)
-        if sample.lower().strip() not in corpus_set and score >= plausibility_threshold:
-            plausible.append((sample, score))
-    n = len(samples)
-    return {
-        "plausible_count": len(plausible),
-        "plausible_ratio": len(plausible) / n if n else 0.0,
-        "plausible_words": plausible,
-        "avg_plausibility": sum(scores) / len(scores) if scores else 0.0,
-    }
-
-
 def is_nonsense(word: str) -> bool:
     if len(word) < 2:
         return True
@@ -176,24 +134,14 @@ def is_nonsense(word: str) -> bool:
     return False
 
 
-def count_nonsense_words(samples: list[str]) -> dict[str, float | list[str]]:
-    nonsense = [word for word in samples if is_nonsense(word)]
-    n = len(samples)
-    return {
-        "nonsense_count": len(nonsense),
-        "nonsense_ratio": len(nonsense) / n if n else 0.0,
-        "nonsense_words": nonsense,
-    }
-
-
 def evaluate_semantic_quality(
     samples: list[str],
     training_corpus: list[str],
-    plausibility_threshold: float = 0.6,
+    plausibility_threshold: float = PLAUSIBILITY_THRESHOLD,
 ) -> dict[str, float | list[str]]:
-    nonsense_results = count_nonsense_words(samples)
     total = len(samples)
     if not training_corpus:
+        tier3_ratio = 1.0 if total else 0.0
         return {
             "tier1_real_count": 0,
             "tier1_real_ratio": 0.0,
@@ -202,22 +150,11 @@ def evaluate_semantic_quality(
             "tier2_plausible_ratio": 0.0,
             "tier2_avg_score": 0.0,
             "tier2_examples": [],
-            "tier3_nonsense_count": int(nonsense_results["nonsense_count"]),
-            "tier3_nonsense_ratio": float(nonsense_results["nonsense_ratio"]),
-            "tier3_examples": nonsense_results["nonsense_words"][:5],
-            "overall_quality_score": max(
-                0.0,
-                min(
-                    1.0,
-                    (
-                        0.0
-                        + 0.0
-                        + (1.0 - nonsense_results["nonsense_ratio"]) * 0.3
-                    )
-                    / 2.0,
-                ),
-            ),
-            "distribution_sum": float(nonsense_results["nonsense_ratio"]),
+            "tier3_nonsense_count": total,
+            "tier3_nonsense_ratio": tier3_ratio,
+            "tier3_examples": samples[:5],
+            "overall_quality_score": compute_overall_quality_score(0.0, 0.0, tier3_ratio),
+            "distribution_sum": tier3_ratio,
         }
 
     corpus_set = _normalized_corpus_set(training_corpus)
@@ -225,6 +162,7 @@ def evaluate_semantic_quality(
     big = _corpus_bigrams(training_corpus)
     real_words: list[str] = []
     plausible_pairs: list[tuple[str, float]] = []
+    tier3_words: list[str] = []
     all_scores: list[float] = []
     for s in samples:
         sc = _score_plausibility_impl(s, avg, big)
@@ -234,15 +172,15 @@ def evaluate_semantic_quality(
             real_words.append(s)
         elif sc >= plausibility_threshold:
             plausible_pairs.append((s, sc))
+        else:
+            tier3_words.append(s)
 
     tier2_count = len(plausible_pairs)
     tier2_ratio = tier2_count / total if total else 0.0
     tier2_avg = sum(all_scores) / len(all_scores) if all_scores else 0.0
     real_ratio = len(real_words) / total if total else 0.0
-    overall = (
-        real_ratio * 1.0 + tier2_ratio * 0.7 + (1.0 - nonsense_results["nonsense_ratio"]) * 0.3
-    ) / 2.0
-    overall = max(0.0, min(1.0, overall))
+    tier3_ratio = len(tier3_words) / total if total else 0.0
+    overall = compute_overall_quality_score(real_ratio, tier2_ratio, tier3_ratio)
     return {
         "tier1_real_count": len(real_words),
         "tier1_real_ratio": real_ratio,
@@ -251,11 +189,11 @@ def evaluate_semantic_quality(
         "tier2_plausible_ratio": tier2_ratio,
         "tier2_avg_score": tier2_avg,
         "tier2_examples": [w for w, _ in plausible_pairs[:5]],
-        "tier3_nonsense_count": int(nonsense_results["nonsense_count"]),
-        "tier3_nonsense_ratio": float(nonsense_results["nonsense_ratio"]),
-        "tier3_examples": nonsense_results["nonsense_words"][:5],
+        "tier3_nonsense_count": len(tier3_words),
+        "tier3_nonsense_ratio": tier3_ratio,
+        "tier3_examples": tier3_words[:5],
         "overall_quality_score": overall,
-        "distribution_sum": float(real_ratio + tier2_ratio + nonsense_results["nonsense_ratio"]),
+        "distribution_sum": float(real_ratio + tier2_ratio + tier3_ratio),
     }
 
 

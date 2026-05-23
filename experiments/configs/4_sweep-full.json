@@ -1,0 +1,25 @@
+{
+  "order": 4,
+  "name": "full",
+  "suite_note": "architecture + steps + temperature + learning_rate",
+  "output_dir": "outputs/sweeps/4-full",
+  "baseline": {
+    "overall_quality_score": 0.5825,
+    "tier1_real_ratio": 0.55,
+    "tier2_plausible_ratio": 0.45,
+    "tier3_nonsense_ratio": 0.0
+  },
+  "fixed": {
+    "n_layer": 1,
+    "n_embd": 16,
+    "n_head": 4,
+    "block_size": 16,
+    "seed": 42,
+    "input_path": "input.txt"
+  },
+  "grid": {
+    "num_steps": [500, 1000, 2000],
+    "temperature": [0.3, 0.5, 0.7],
+    "learning_rate": [0.005, 0.01]
+  }
+}

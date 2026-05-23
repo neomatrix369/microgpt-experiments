@@ -1,0 +1,30 @@
+microGPT run report
+===================
+--- Config (this run) ---
+N_LAYER=1
+N_EMBD=16
+N_HEAD=4
+HEAD_DIM=4
+# HEAD_DIM is N_EMBD // N_HEAD (not a separate sweep knob).
+BLOCK_SIZE=16
+NUM_STEPS=5
+TEMPERATURE=0.5
+SEED=42
+LEARNING_RATE=0.01
+BETA1=0.85
+BETA2=0.99
+EPS_ADAM=1e-08
+INPUT_PATH=input.txt
+
+Final loss (last training step): 2.500000
+
+--- Loss history (CSV: step,loss) ---
+0,3.000000
+1,2.800000
+2,2.600000
+3,2.400000
+4,2.500000
+
+--- Inference samples ---
+Sample  1: alice
+Sample  2: bob

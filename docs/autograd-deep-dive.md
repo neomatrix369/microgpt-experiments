@@ -2,11 +2,14 @@
 
 How **automatic differentiation** works in microgpt: the `Value` class, the computation graph, `backward()`, and where it all connects to training.
 
-**Prerequisites:** skim [`learn-before-you-code.md`](./learn-before-you-code.md) for the big picture (loss, tokens, training loop). **Navigation:** [`docs/README.md`](./README.md).
+**Prerequisites:** skim [`learn-before-you-code.md`](./learn-before-you-code.md) for the big picture (loss, tokens, training loop).
+
+**Navigation:** [`docs/README.md`](./README.md) · [`QUICKSTART.md`](../QUICKSTART.md) · [`README.md`](../README.md)  
+**Related:** [experiments](./experiment-workflow.md) · [quality tiers](./M2-semantic-quality.md) · [sweep configs](../experiments/configs/README.md)
 
 **Read this doc** before [`mgpt/value.py`](../mgpt/value.py) if autograd is new; read **alongside** the file if you learn by doing.
 
-**Suggested path:** this page → `value.py` → `ops.py` → `train()` in `microgpt_updated.py` → `model.py` → [Karpathy's microGPT blog](https://karpathy.github.io/2026/02/12/microgpt/) for theory.
+**Suggested path:** this page → `value.py` → `ops.py` → `train()` in `mgpt/experiment.py` → `microgpt_updated.py` `main()` → `model.py` → [Karpathy's microGPT blog](https://karpathy.github.io/2026/02/12/microgpt/) for theory.
 
 ---
 
@@ -213,7 +216,7 @@ Higher-level ops live in [`mgpt/ops.py`](../mgpt/ops.py): `linear`, `softmax`, `
 
 ## 6. Softmax and cross-entropy
 
-The training loop ([`microgpt_updated.py`](../microgpt_updated.py) `train()`, ~383–394) computes loss like this:
+The training loop ([`mgpt/experiment.py`](../mgpt/experiment.py) `train()`, ~264–267) computes loss like this:
 
 ```text
 probs = softmax(logits)
@@ -312,18 +315,20 @@ for node in reversed(topo):
 |-------|------|-------|
 | 1 | [`mgpt/value.py`](../mgpt/value.py) | `Value`, all ops, `backward()` (~150 lines) |
 | 2 | [`mgpt/ops.py`](../mgpt/ops.py) | `linear`, `softmax`, `rmsnorm` |
-| 3 | [`microgpt_updated.py`](../microgpt_updated.py) `train()` | loss, `backward()`, Adam, grad zero |
-| 4 | [`mgpt/model.py`](../mgpt/model.py) | Full forward graph (`gpt()`) |
-| 5 | [`microgpt.py`](../microgpt.py) | Same `Value` class inline; one-file narrative |
+| 3 | [`mgpt/experiment.py`](../mgpt/experiment.py) `train()` | loss, `backward()`, Adam, grad zero, live elapsed/ETA |
+| 4 | [`microgpt_updated.py`](../microgpt_updated.py) `main()` | CLI → `run_experiment()` → report on disk |
+| 5 | [`mgpt/model.py`](../mgpt/model.py) | Full forward graph (`gpt()`) |
+| 6 | [`microgpt.py`](../microgpt.py) | Same `Value` class inline; one-file narrative |
 
 ```mermaid
 flowchart LR
   Doc["autograd-deep-dive.md"]
   V["value.py"]
   O["ops.py"]
-  T["train()"]
+  T["mgpt/experiment.py train()"]
+  Entry["microgpt_updated.py main()"]
   M["model.py"]
-  Doc --> V --> O --> T --> M
+  Doc --> V --> O --> T --> Entry --> M
 ```
 
 **Full stack (code dependencies):**
@@ -338,10 +343,12 @@ flowchart TB
     Model["mgpt/model.py\ngpt() one-token forward"]
   end
   subgraph loop [Training loop]
-    Train["microgpt_updated.py train()\nloss → backward → Adam → grad=0"]
+    Train["mgpt/experiment.py train()\nloss → backward → Adam → grad=0"]
+    Entry["microgpt_updated.py main()\nrun_experiment() → output_*.txt"]
     Compact["microgpt.py\nsame Value class inline"]
   end
   Value --> Ops --> Model --> Train
+  Train --> Entry
   Value --> Compact
 ```
 
@@ -356,7 +363,7 @@ So every op is visible in plain Python. Pedagogical tradeoff: clarity over speed
 Composition over duplication. One generic `backward()` handles everything built from `Value` ops.
 
 **Why does loss start around 3.3?**  
-Random guessing over ~27 tokens (names vocab + BOS): `-log(1/27) ≈ 3.3`. See comments in `train()`.
+Random guessing over ~27 tokens (names vocab + BOS): `-log(1/27) ≈ 3.3`. See comments in `mgpt/experiment.py` `train()`.
 
 **Does generation use backward?**  
 No. Inference runs forward only; `.grad` is unused when sampling names.
@@ -385,7 +392,9 @@ The project follows the Karpathy microGPT style: the source **is** the lesson. T
 
 ## Further reading
 
+- [`docs/README.md`](./README.md) — documentation index by persona
+- [`QUICKSTART.md`](../QUICKSTART.md) — minimal first run
 - [`learn-before-you-code.md`](./learn-before-you-code.md) — tokens, loss, temperature, sample quality
-- [`experiment-workflow.md`](./experiment-workflow.md) — train runs and compare reports
+- [`experiment-workflow.md`](./experiment-workflow.md) — train runs, grid sweep, compare reports
 - [`M2-semantic-quality.md`](./M2-semantic-quality.md) — how generated names are scored (separate from autograd)
 - [Karpathy microGPT blog](https://karpathy.github.io/2026/02/12/microgpt/) — theory and motivation

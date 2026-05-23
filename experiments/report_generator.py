@@ -13,12 +13,14 @@ from __future__ import annotations
 import argparse
 import html
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from run_report.display import format_cfg_value, format_shared_config_line
 from run_report.parse import (
     ParsedRunReport,
     cfg_keys_for_experiment_table,
@@ -31,15 +33,35 @@ from run_report.text_loss_plot import loss_curve_comparison_lines, single_loss_c
 _DEFAULT_OUTPUTS = run_reports_dir(_REPO_ROOT)
 
 
+@dataclass
+class ReportRecord:
+    """One parsed run report row for HTML comparison tables."""
+
+    filename: str
+    path: Path
+    config: dict[str, int | float | str]
+    n_head: int
+    head_dim: int
+    final_loss: float
+    char_dist: float
+    loss_history: list[float] | None
+    samples: list[str]
+    tier1_ratio: float
+    tier2_ratio: float
+    tier3_ratio: float
+    overall_quality: float
+    has_semantic: bool
+    duration_seconds: float | None
+    started_utc: str
+    started_local: str
+    ended_utc: str
+    ended_local: str
+    timezone: str
+
+
 def _cfg_int(cfg: dict[str, int | float | str], key: str, default: int = 0) -> int:
     v = cfg.get(key, default)
     return int(v) if isinstance(v, (int, float)) else default
-
-
-def _fmt_cfg_val(v: object) -> str:
-    if isinstance(v, float):
-        return f"{v:g}"
-    return str(v)
 
 
 def _tier_ratio(sem: dict[str, object] | None, key: str) -> float:
@@ -55,7 +77,7 @@ def _short_label(name: str, max_len: int = 36) -> str:
     return name[: max_len - 1] + "…"
 
 
-def _row_from_parsed(path: Path, parsed: ParsedRunReport) -> dict[str, object]:
+def _row_from_parsed(path: Path, parsed: ParsedRunReport) -> ReportRecord:
     cfg = parsed.config
     sem = parsed.semantic_quality
     n_head = _cfg_int(cfg, "N_HEAD", 1)
@@ -63,31 +85,39 @@ def _row_from_parsed(path: Path, parsed: ParsedRunReport) -> dict[str, object]:
     if head_dim <= 0:
         n_embd = _cfg_int(cfg, "N_EMBD", 1)
         head_dim = n_embd // n_head if n_head else 0
-    return {
-        "filename": path.name,
-        "path": path,
-        "config": cfg,
-        "n_head": n_head,
-        "head_dim": head_dim,
-        "final_loss": parsed.final_loss,
-        "char_dist": float(parsed.char_dist_score or 0.0),
-        "loss_history": parsed.loss_history,
-        "samples": parsed.samples,
-        "tier1_ratio": _tier_ratio(sem, "tier1_real_ratio"),
-        "tier2_ratio": _tier_ratio(sem, "tier2_plausible_ratio"),
-        "tier3_ratio": _tier_ratio(sem, "tier3_nonsense_ratio"),
-        "overall_quality": _tier_ratio(sem, "overall_quality_score"),
-        "has_semantic": parsed.semantic_quality is not None,
-    }
+    timing = parsed.run_timing
+    hint = parsed.filename_timestamp_hint
+    return ReportRecord(
+        filename=path.name,
+        path=path,
+        config=cfg,
+        n_head=n_head,
+        head_dim=head_dim,
+        final_loss=parsed.final_loss,
+        char_dist=float(parsed.char_dist_score or 0.0),
+        loss_history=parsed.loss_history,
+        samples=parsed.samples,
+        tier1_ratio=_tier_ratio(sem, "tier1_real_ratio"),
+        tier2_ratio=_tier_ratio(sem, "tier2_plausible_ratio"),
+        tier3_ratio=_tier_ratio(sem, "tier3_nonsense_ratio"),
+        overall_quality=_tier_ratio(sem, "overall_quality_score"),
+        has_semantic=parsed.semantic_quality is not None,
+        duration_seconds=timing.duration_seconds if timing else None,
+        started_utc=timing.started_utc if timing else "",
+        started_local=timing.started_local if timing else (hint or ""),
+        ended_utc=timing.ended_utc if timing else "",
+        ended_local=timing.ended_local if timing else (hint or ""),
+        timezone=timing.timezone if timing else "",
+    )
 
 
-def _legacy_summary_line(entries: list[dict[str, object]], *, max_list: int = 12) -> str:
+def _legacy_summary_line(entries: list[ReportRecord], *, max_list: int = 12) -> str:
     """Single-line description of legacy runs (loss + filename)."""
     n = len(entries)
     parts: list[str] = []
     for e in entries[:max_list]:
         parts.append(
-            f"{e['filename']} (loss {float(e['final_loss']):.4f})"
+            f"{e.filename} (loss {e.final_loss:.4f})"
         )
     tail = ""
     if n > max_list:
@@ -100,34 +130,31 @@ def _legacy_summary_line(entries: list[dict[str, object]], *, max_list: int = 12
     )
 
 
-def _html_config_block(records: list[dict[str, object]]) -> str:
+def _html_config_block(records: list[ReportRecord]) -> str:
     """Shared vs varying config (same ideas as ``compare_run_reports``)."""
     if not records:
         return ""
     keys_union: set[str] = set()
     for r in records:
-        keys_union |= set(r["config"])  # type: ignore[arg-type]
+        keys_union |= set(r.config)
     ordered = cfg_keys_for_experiment_table(keys_union)
 
     shared_lines: list[str] = []
     varying: list[tuple[str, list[str]]] = []
 
-    cfg_list = [r["config"] for r in records]  # type: ignore[misc]
+    cfg_list = [r.config for r in records]
 
     for key in ordered:
         vals = [c.get(key) for c in cfg_list]
         if all(v == vals[0] for v in vals):
-            line = f"{key}={_fmt_cfg_val(vals[0])}"
-            cap = experiment_cfg_calculated_caption(key)
-            if cap:
-                line += f"  — {cap}"
+            line = format_shared_config_line(key, vals[0])
             shared_lines.append(line)
         else:
             varying.append(
                 (
                     key,
                     [
-                        _fmt_cfg_val(v) if v is not None else "—"
+                        format_cfg_value(v) if v is not None else "—"
                         for v in vals
                     ],
                 )
@@ -143,7 +170,7 @@ def _html_config_block(records: list[dict[str, object]]) -> str:
 
     if varying:
         headers = "".join(
-            f"<th>{html.escape(_short_label(str(r['filename']), 28))}</th>"
+            f"<th>{html.escape(_short_label(r.filename, 28))}</th>"
             for r in records
         )
         body_rows = []
@@ -172,17 +199,17 @@ def _html_config_block(records: list[dict[str, object]]) -> str:
     return "\n".join(parts)
 
 
-def _html_samples_block(records: list[dict[str, object]]) -> str:
+def _html_samples_block(records: list[ReportRecord]) -> str:
     """Side-by-side inference samples with * when a row differs across runs."""
     if len(records) < 2:
         return ""
-    samples_per = [list(r["samples"]) for r in records]  # type: ignore[misc]
+    samples_per = [list(r.samples) for r in records]
     n = max((len(s) for s in samples_per), default=0)
     if n == 0:
         return ""
 
     headers = "".join(
-        f"<th>{html.escape(_short_label(str(r['filename']), 24))}</th>"
+        f"<th>{html.escape(_short_label(r.filename, 24))}</th>"
         for r in records
     )
     rows_html: list[str] = []
@@ -216,17 +243,16 @@ def _html_samples_block(records: list[dict[str, object]]) -> str:
 
 
 def _html_loss_block(
-    records: list[dict[str, object]],
+    records: list[ReportRecord],
     *,
     loss_bins: int,
     loss_height: int,
 ) -> str:
     """Loss ASCII: one run → single grid; several → baseline (best final loss) vs each other."""
-    with_hist: list[tuple[dict[str, object], list[float]]] = []
+    with_hist: list[tuple[ReportRecord, list[float]]] = []
     for r in records:
-        h = r.get("loss_history")
-        if isinstance(h, list) and h:
-            with_hist.append((r, h))
+        if r.loss_history:
+            with_hist.append((r, r.loss_history))
 
     if not with_hist:
         return ""
@@ -243,7 +269,7 @@ def _html_loss_block(
 
     if len(with_hist) == 1:
         r, h = with_hist[0]
-        label = _short_label(str(r["filename"]))
+        label = _short_label(r.filename)
         lines = single_loss_curve_lines(
             label=label,
             losses=h,
@@ -256,15 +282,15 @@ def _html_loss_block(
     else:
         baseline_rec, baseline_h = min(
             with_hist,
-            key=lambda t: float(t[0]["final_loss"]),
+            key=lambda t: t[0].final_loss,
         )
-        base_label = _short_label(str(baseline_rec["filename"]))
+        base_label = _short_label(baseline_rec.filename)
         others = [
             (r, h)
             for r, h in with_hist
             if r is not baseline_rec
         ]
-        others.sort(key=lambda t: str(t[0]["filename"]))
+        others.sort(key=lambda t: t[0].filename)
 
         parts.append(
             "    <p><strong>Baseline:</strong> "
@@ -272,7 +298,7 @@ def _html_loss_block(
         )
 
         for r, h in others:
-            other_label = _short_label(str(r["filename"]))
+            other_label = _short_label(r.filename)
             lines = loss_curve_comparison_lines(
                 label_a=base_label,
                 label_b=other_label,
@@ -297,61 +323,72 @@ def generate_html_report(
     loss_bins: int = 72,
     loss_height: int = 12,
 ) -> None:
-    records: list[dict[str, object]] = []
+    records: list[ReportRecord] = []
     for path in sorted(output_files, key=lambda p: p.name):
         text = path.read_text(encoding="utf-8")
-        parsed = parse_run_report_text(text)
+        parsed = parse_run_report_text(text, report_filename=path.name)
         records.append(_row_from_parsed(path, parsed))
 
-    modern = [r for r in records if r["has_semantic"]]
-    legacy = [r for r in records if not r["has_semantic"]]
+    modern = [r for r in records if r.has_semantic]
+    legacy = [r for r in records if not r.has_semantic]
 
     if not records:
         raise ValueError("no reports to render")
 
     best_loss = (
-        min(float(r["final_loss"]) for r in modern) if modern else float("nan")
+        min(r.final_loss for r in modern) if modern else float("nan")
     )
     best_quality = (
-        max(float(r["overall_quality"]) for r in modern) if modern else 0.0
+        max(r.overall_quality for r in modern) if modern else 0.0
     )
 
     rows_html: list[str] = []
     for r in modern:
-        loss = float(r["final_loss"])
-        oq = float(r["overall_quality"])
+        loss = r.final_loss
+        oq = r.overall_quality
         loss_class = "best" if modern and loss == best_loss else ""
         quality_class = (
             "best" if modern and oq == best_quality and oq > 0 else ""
         )
-        sample0 = r["samples"][0] if r["samples"] else "N/A"
-        cfg_label = f"{r['n_head']}×{r['head_dim']}"
+        sample0 = r.samples[0] if r.samples else "N/A"
+        cfg_label = f"{r.n_head}×{r.head_dim}"
+        duration = r.duration_seconds
+        duration_cell = f"{duration:.1f}s" if isinstance(duration, (int, float)) else "—"
+        started_utc = r.started_utc or "—"
+        started_local = r.started_local or "—"
+        ended_utc = r.ended_utc or "—"
+        ended_local = r.ended_local or "—"
         rows_html.append(
             f"""            <tr>
                 <td>{html.escape(cfg_label)}</td>
                 <td class="metric {loss_class}">{loss:.4f}</td>
                 <td class="metric {quality_class}">{oq:.3f}</td>
-                <td>{float(r['tier1_ratio']):.1%}</td>
-                <td>{float(r['tier2_ratio']):.1%}</td>
-                <td>{float(r['tier3_ratio']):.1%}</td>
+                <td>{r.tier1_ratio:.1%}</td>
+                <td>{r.tier2_ratio:.1%}</td>
+                <td>{r.tier3_ratio:.1%}</td>
+                <td class="metric">{html.escape(duration_cell)}</td>
+                <td class="fname">{html.escape(_short_label(started_utc, 24))}</td>
+                <td class="fname">{html.escape(_short_label(started_local, 24))}</td>
+                <td class="fname">{html.escape(_short_label(ended_utc, 24))}</td>
+                <td class="fname">{html.escape(_short_label(ended_local, 24))}</td>
                 <td class="samples">{html.escape(sample0)}</td>
-                <td class="fname">{html.escape(str(r['filename']))}</td>
+                <td class="fname">{html.escape(r.filename)}</td>
             </tr>"""
         )
 
     if legacy:
         rows_html.append(
             f"""            <tr class="legacy-summary">
-                <td colspan="8">{_legacy_summary_line(legacy)}</td>
+                <td colspan="13">{_legacy_summary_line(legacy)}</td>
             </tr>"""
         )
 
     bars_html: list[str] = []
     for r in modern:
-        cfg_name = f"{r['n_head']}×{r['head_dim']}"
-        t1 = float(r["tier1_ratio"])
-        t2 = float(r["tier2_ratio"])
-        t3 = float(r["tier3_ratio"])
+        cfg_name = f"{r.n_head}×{r.head_dim}"
+        t1 = r.tier1_ratio
+        t2 = r.tier2_ratio
+        t3 = r.tier3_ratio
         f1 = max(1, int(round(t1 * 100)))
         f2 = max(1, int(round(t2 * 100)))
         f3 = max(1, int(round(t3 * 100)))
@@ -441,6 +478,11 @@ def generate_html_report(
         <th>Real words</th>
         <th>Plausible</th>
         <th>Nonsense</th>
+        <th>Duration</th>
+        <th>Started (UTC)</th>
+        <th>Started (local)</th>
+        <th>Ended (UTC)</th>
+        <th>Ended (local)</th>
         <th>First sample</th>
         <th>File</th>
       </tr>

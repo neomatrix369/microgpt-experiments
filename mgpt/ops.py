@@ -7,6 +7,9 @@ from typing import Annotated
 
 from .value import Value
 
+RMSNORM_EPS = 1e-5
+WEIGHT_INIT_STD = 0.08
+
 Vector = Annotated[list[Value], "An embedding or hidden state"]
 Matrix = Annotated[list[Vector], "A weight matrix (rows of vectors)"]
 
@@ -41,10 +44,10 @@ def rmsnorm(x: Vector) -> Vector:
     which stabilises training. Simpler variant of GPT-2's LayerNorm.
     """
     mean_sq = sum((xi * xi for xi in x), Value(0.0)) / len(x)
-    scale = (mean_sq + 1e-5) ** -0.5
+    scale = (mean_sq + RMSNORM_EPS) ** -0.5
     return [xi * scale for xi in x]
 
 
-def make_matrix(nout: int, *, nin: int, std: float = 0.08) -> Matrix:
+def make_matrix(nout: int, *, nin: int, std: float = WEIGHT_INIT_STD) -> Matrix:
     """Create a (nout x nin) matrix of randomly initialised Value nodes."""
     return [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]

@@ -8,7 +8,7 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 
 **There is no `requirements.txt` or `pyproject.toml` on purpose:** only Python 3.
 
-**Jump to:** [Who is this for?](#who-is-this-for) | [Quickstart](QUICKSTART.md) | [Docs index](docs/README.md) | [Run](#quick-start) | [Experiments](#run-experiments-examples) | [Compare reports](#run-reports) | [Configuration](#configuration) | [Architecture](#architecture-high-level)
+**Jump to:** [Who is this for?](#who-is-this-for) | [Quickstart](QUICKSTART.md) | [Docs index](docs/README.md) | [Run](#quick-start) | [Experiments](#run-experiments-examples) | [Grid sweep](#grid-sweep-automated-search) | [Compare reports](#run-reports) | [Configuration](#configuration) | [Architecture](#architecture-high-level)
 
 ---
 
@@ -19,9 +19,9 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 | Persona | Start here | What you will do |
 |---------|------------|------------------|
 | **Learner / student** | [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) | Understand tokens, loss, transformers, then read `mgpt/` and [`microgpt.py`](./microgpt.py) |
-| **Workshop / playgroup attendee** | [`QUICKSTART.md`](./QUICKSTART.md) → [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) | Run training, sweep `N_HEAD` / steps, compare reports |
+| **Workshop / playgroup attendee** | [`QUICKSTART.md`](./QUICKSTART.md) → [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) | Run training, manual sweeps, or numbered JSON grid (`experiments/sweep.py`) |
 | **Curious explorer** | [`example-experiments/comparison_report.html`](./example-experiments/comparison_report.html) | Browse H4 vs H1 results **without training** |
-| **Experimenter** | [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) | Train → `outputs/` → CLI diff or HTML; read [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) for tier scores |
+| **Experimenter** | [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) | Train → `outputs/` → CLI diff, HTML, or grid sweep ranked by quality score; wall-clock in **`--- Run timing ---`** and sweep artifacts |
 | **Autograd-focused reader** | [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) | Diagrams + hand-traced `Value` / `backward()` before [`mgpt/value.py`](./mgpt/value.py) |
 | **Contributor / extender** | [`CLAUDE.md`](./CLAUDE.md) | Edit [`microgpt_updated.py`](./microgpt_updated.py) + [`mgpt/`](./mgpt/); report format in [`run_report/`](./run_report/) |
 
@@ -31,8 +31,9 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 
 | Goal | Tool |
 |------|------|
-| Diff **two** runs in the terminal | `compare_run_reports.py` |
-| Table of **two or more** runs in a browser | `experiments/report_generator.py` |
+| Diff **two** runs in the terminal (config, loss, samples; timing when present) | `compare_run_reports.py` |
+| Table of **two or more** runs in a browser (quality + timing columns) | `experiments/report_generator.py` |
+| **Grid search** many configs by quality score | `experiments/sweep.py` + JSON under `experiments/configs/` |
 
 ---
 
@@ -44,6 +45,7 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 | **Learn the ideas** before opening code | [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) |
 | **Understand autograd** | [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) |
 | **Run and compare experiments** | [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) |
+| **Grid sweep (automated search)** | [Grid sweep](#grid-sweep-automated-search) · [`experiments/configs/README.md`](./experiments/configs/README.md) |
 | **Change settings** | [Configuration](#configuration) · `python microgpt_updated.py --help` |
 | **Understand generated-name scoring** | [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) |
 | **Edit code or add features** | [`CLAUDE.md`](./CLAUDE.md) |
@@ -76,7 +78,7 @@ Training is **intentionally slow** (scalar ops in Python). That is expected and 
 > **New here?** [`QUICKSTART.md`](./QUICKSTART.md) is the shortest path to a first run. This section adds detail and script choice.
 
 ```bash
-# Recommended: structured entry with types, Tokeniser, train()/generate()/main()
+# Recommended: structured entry with types, Tokeniser, main() → run_experiment()
 python microgpt_updated.py
 
 # Same defaults, but override hyperparameters for this run (no file edits)
@@ -90,7 +92,7 @@ python microgpt.py
 **What you should see:**
 
 1. Dataset size, vocabulary size, parameter count.
-2. Training **loss** per step (one updating line)—loss should generally **decrease** over time.
+2. Training **loss** per step on one updating line with live **`elapsed … | ETA …`** (padded so ETA is not clipped by the terminal), then a **`Run wall clock:`** summary after training.
 3. **20 generated lines** (default: name-like strings), then a **sample quality** block (how name-like vs the training file).
 
 **`microgpt_updated.py` only** also writes a **run report** to **`outputs/`** (see [Run reports](#run-reports)). The compact `microgpt.py` prints to the terminal only. CLI flags exist only on the refactored entry.
@@ -109,9 +111,10 @@ Together, the sections below cover **everything you need** to drive this script:
 | **All CLI flags** | `python microgpt_updated.py --help` and the [Configuration](#configuration) table (`--n-layer` … `--suite-note`) |
 | **Custom data file** | `--input path/to/file.txt` (same one-line-per-document format as `input.txt`) |
 | **Source-only knobs** (no CLI yet) | Edit the file for `EPS_ADAM`, `NAMES_URL`, or defaults you want when omitting flags |
-| **Reproduce project sweeps** | [Run experiments examples](#run-experiments-examples) (distinct `N_HEAD` × `NUM_STEPS` from saved `output_*.txt`) |
+| **Reproduce project sweeps** | [Run experiments examples](#run-experiments-examples) (manual CLI) or [Grid sweep](#grid-sweep-automated-search) (JSON configs) |
 | **Label runs for HTML tables** | [Configuration](#configuration) example: `--suite-index` / `--suite-total` / `--suite-note` |
 | **Diff or aggregate reports** | [Run reports](#run-reports): `compare_run_reports.py`, `experiments/report_generator.py` (both expect paths under **`outputs/`** by convention; defaults use `run_reports_dir`). Config lists **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** (then other keys); **`HEAD_DIM`** is labeled as calculated from the first two. |
+| **Automated grid search** | [Grid sweep](#grid-sweep-automated-search): `experiments/sweep.py` ranks runs by heuristic **`OVERALL_QUALITY_SCORE`** (see [`mgpt/quality.py`](./mgpt/quality.py)) |
 
 Illustrative one-offs (not tied to the sweep table):
 
@@ -141,7 +144,41 @@ python microgpt_updated.py --n-head 1 --num-steps 50
 python microgpt_updated.py --n-head 1 --num-steps 2000
 ```
 
-Each run writes a new `outputs/output_*.txt` whose stem encodes the effective config (plus a local timestamp). Compare reports with `compare_run_reports.py` or `experiments/report_generator.py` — see **[`docs/experiment-workflow.md`](./docs/experiment-workflow.md)** for a step-by-step recipe. For **checked-in examples** you can browse without training first, see [Example artifacts (preview)](#example-artifacts-preview).
+Each run writes a new `outputs/output_*.txt` whose stem encodes the effective config (plus a local timestamp suffix for uniqueness). New runs also include **`--- Run timing ---`**; checked-in **`example-experiments/`** reports predate that block. Compare reports with `compare_run_reports.py` or `experiments/report_generator.py` — see **[`docs/experiment-workflow.md`](./docs/experiment-workflow.md)** for a step-by-step recipe. For **checked-in examples** you can browse without training first, see [Example artifacts (preview)](#example-artifacts-preview).
+
+## Grid sweep (automated search)
+
+For **many hyperparameter combinations** ranked by a single quality number, use **`experiments/sweep.py`** with numbered JSON configs in **`experiments/configs/`** (`0_sweep-smoke-test.json` for a quick pipeline check · `1_sweep-minimal.json` … `4_sweep-full.json` for real sweeps).
+
+The platform optimizes **simple heuristic tier scores** (not human ground truth). Scoring rules live in **`mgpt/evaluation.py`**; the overall formula, baseline comparison, and ranking key live in **`mgpt/quality.py`**. You can replace or extend those modules — see **[`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md#extending-quality-scoring-yourself)**.
+
+**Reference baseline** (default in configs — H4 @ 1000 steps from `example-experiments/`):
+
+```text
+TIER1_REAL_RATIO=0.550000
+TIER2_PLAUSIBLE_RATIO=0.450000
+TIER3_NONSENSE_RATIO=0.000000
+OVERALL_QUALITY_SCORE=0.582500
+```
+
+```bash
+# List configs in recommended order
+python experiments/sweep.py --list-configs
+
+# Preview a sweep (no training)
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --dry-run
+
+# Quick end-to-end check (~seconds): 2 runs × 5 steps
+python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
+
+# Production minimal sweep (slow): 4 runs × 1000–2000 steps
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json
+
+# Re-rank saved runs without retraining
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --summarize-only
+```
+
+Each sweep writes **`sweep_summary.csv`** (per-run timing columns: UTC/local start/end, duration, timezone), **`sweep_timing.txt`** (whole-grid wall clock), per-run **`output_*.txt`** reports, and an optional HTML comparison under **`outputs/sweeps/<order>-<name>/`**. Full recipe: **[`docs/experiment-workflow.md` → Grid sweep](./docs/experiment-workflow.md#grid-sweep-automated-search)** · config index: **[`experiments/configs/README.md`](./experiments/configs/README.md)**.
 
 **Tests** (optional; requires `pytest` installed in your environment):
 
@@ -177,14 +214,14 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 
 | Path | Role |
 |------|------|
-| **`microgpt_updated.py`** | Refactored **entry**: hyperparameters (module constants **or** optional `argparse` CLI), `train()` / `generate()` / `main()`, `save_run_report()`. Imports **`mgpt/`** (model + autograd + data) and **`run_report/`** (report text format). **Prefer this for new features, tests, or structural changes.** |
-| **`mgpt/`** | Package: `Value`, tensor ops, transformer step `gpt()`, `load_dataset` / `build_tokeniser`, **`evaluation.py`** (character similarity + three-tier semantic heuristics for generated samples). Stdlib only. |
-| **`run_report/`** | Package: parse/compare saved reports (`parse.py`), narrative (`narrative.py`), **`paths.py`** (`DEFAULT_RUN_REPORT_DIR`, **`run_reports_dir(repo_root)`** — shared location for `outputs/`), full report assembly (`builder.py`), **text loss visuals** (`text_loss_plot.py`). Used by the entry script, `annotate_run_reports.py`, `compare_run_reports.py`, and **`experiments/report_generator.py`**. |
-| **`experiments/`** | Optional tooling: **`report_generator.py`** builds an **HTML** report (config diff, quality table, sample grid, optional loss ASCII, tier bars). Stdlib only; adds repo root to `sys.path` so it can be run from any working directory. |
-| **`tests/`** | `pytest` suite: evaluation, `run_report` paths, text loss plot helpers, HTML report generator. |
+| **`microgpt_updated.py`** | Refactored **entry**: hyperparameters (module constants **or** optional `argparse` CLI), `main()` → **`mgpt.experiment.run_experiment()`**. Imports **`mgpt/`** (model + autograd + data + experiment API) and **`run_report/`** (report text format). **Prefer this for new features, tests, or structural changes.** |
+| **`mgpt/`** | Package: `Value`, tensor ops, transformer step `gpt()`, `load_dataset` / `build_tokeniser`, **`evaluation.py`** (tier heuristics), **`quality.py`** (overall score + baseline compare + sweep ranking), **`experiment.py`** (train/generate API). Stdlib only. |
+| **`run_report/`** | Package: parse/compare saved reports (`parse.py`), narrative (`narrative.py`), **`paths.py`** (`DEFAULT_RUN_REPORT_DIR`, **`run_reports_dir(repo_root)`** — shared location for `outputs/`), full report assembly (`builder.py`), **text loss visuals** (`text_loss_plot.py`), **`timing.py`** (UTC + local ISO, duration, live elapsed/ETA, sweep timing file). Used by the entry script, `mgpt/experiment.py`, `annotate_run_reports.py`, `compare_run_reports.py`, and **`experiments/report_generator.py`**. |
+| **`experiments/`** | Optional tooling: **`sweep.py`** + **`sweep_grid.py`** (numbered JSON grid search under **`configs/`** — `0_sweep-smoke-test.json` … `4_sweep-full.json`; ranks by `OVERALL_QUALITY_SCORE`; writes timing to CSV and `sweep_timing.txt`), **`report_generator.py`** (HTML comparison with timing columns). Stdlib only. |
+| **`tests/`** | `pytest` suite: evaluation, quality, experiment API, sweep grid, run timing, `run_report` paths, text loss plot helpers, HTML report generator. |
 | **`microgpt.py`** | Compact version: one continuous script with module-level state; closest to a “single-file walkthrough.” |
 | **`annotate_run_reports.py`** | Utility script: inserts the `--- What this run is ---` narrative into **existing** `output_*.txt` files (default glob: **`outputs/`**; so older runs match the current report format). |
-| **`compare_run_reports.py`** | Utility script: compares two saved run reports (parsed config, final loss, ordered inference samples). Exit code `0` if all match, `1` if something differs, `2` on usage or parse errors. |
+| **`compare_run_reports.py`** | Utility script: compares two saved run reports (parsed config, final loss, ordered inference samples, informational run timing when present). Exit code `0` if all match, `1` if something differs, `2` on usage or parse errors (timing does not affect exit code). |
 | **`input.txt`** | Training data (optional if download path runs). |
 | **`outputs/`** | Default directory for run reports (`output_*.txt`) and `comparison_report.html`; gitignored. Created automatically on write. |
 | **`output_*.txt`** | Optional: written by `microgpt_updated.py` under **`outputs/`** by default; not produced by `microgpt.py`. Names encode hyperparameters and a local `_YYYYMMDD_HHMMSS` suffix (see [Run reports](#run-reports)). |
@@ -193,8 +230,9 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`docs/README.md`** | **Documentation index** — all guides by persona and task. |
 | **`docs/learn-before-you-code.md`** | **Start here for concepts** — plain-language primer with examples before reading code. |
 | **`docs/autograd-deep-dive.md`** | **Autograd learning guide** — `Value`, graph, `backward()`, worked examples, diagrams; read before `mgpt/value.py`. |
-| **`docs/experiment-workflow.md`** | **Experiment recipe** — train runs, save reports, compare CLI vs HTML; links to `example-experiments/`. |
-| **`docs/M2-semantic-quality.md`** | **Sample quality guide** — how generated names are scored (tiers, metrics, commands). |
+| **`docs/experiment-workflow.md`** | **Experiment recipe** — train runs, save reports, compare CLI vs HTML; grid sweep and run timing. |
+| **`experiments/configs/README.md`** | **Grid sweep configs** — numbered JSON files (`0_sweep-smoke-test.json` … `4_sweep-full.json`). |
+| **`docs/M2-semantic-quality.md`** | **Sample quality guide** — tiers, `mgpt/quality.py`, extending scoring, sweep ranking. |
 | **`CLAUDE.md`** | Maintainer / assistant context: conventions, internals, which file to edit. |
 | **`AGENTS.md`** | Short pointer to `README.md` / `CLAUDE.md` for agent harnesses. |
 | **`example-experiments/`** | Checked-in **sample run reports**, a **`compare_run_reports.py`** transcript, and an **HTML comparison** for the **4-head vs 1-head @ 1000 steps** pair — see [Example artifacts (preview)](#example-artifacts-preview). Your own runs still land in gitignored **`outputs/`**. |
@@ -289,6 +327,7 @@ After **`microgpt_updated.py`** finishes, it writes a text file under **`outputs
 |---------|-------------------|
 | `--- What this run is ---` | Plain-language summary: input file, architecture, steps, how to read loss and samples |
 | `--- Experiment suite ---` | Optional labels when you sweep variants (`--suite-index`, etc.) |
+| `--- Run timing ---` | Wall-clock start/end in **UTC** and **local time with offset**, plus `DURATION_SECONDS` and `TIMEZONE` |
 | `--- Config (this run) ---` | Every hyperparameter; **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** (`HEAD_DIM` is always `N_EMBD // N_HEAD`) |
 | Final loss | Last training-step loss (lower = better fit on training objective) |
 | Sample quality | Character mix and length vs training data |
@@ -299,7 +338,7 @@ After **`microgpt_updated.py`** finishes, it writes a text file under **`outputs
 
 **Technical note:** compare/HTML tools use the same config key order (`run_report.parse._CFG_DISPLAY_ORDER`); parsers derive `HEAD_DIM` in memory.
 
-- **Default path:** **`<microgpt repo>/outputs/`** + filename built from hyperparameters, e.g. `outputs/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The folder is `run_reports_dir(repo_root)` in `run_report.paths` (i.e. `repo_root / DEFAULT_RUN_REPORT_DIR`), where **repo root** is the directory containing `microgpt_updated.py`. That matches `experiments/report_generator.py` and `annotate_run_reports.py`, so tools find the same files even if your shell cwd is elsewhere. Override with **`--output-dir`** on `microgpt_updated.py` (path is resolved from cwd). The stem encodes `L/E/H/B/S/T/seed` (per-head width is `N_EMBD//N_HEAD` and is not a separate filename token) plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built, so repeat runs with the same hyperparameters do not overwrite earlier reports. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py` and `format_run_output_path_for_params()` in `run_report/paths.py`.
+- **Default path:** **`<microgpt repo>/outputs/`** + filename built from hyperparameters, e.g. `outputs/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260422_153045.txt`. The folder is `run_reports_dir(repo_root)` in `run_report.paths` (i.e. `repo_root / DEFAULT_RUN_REPORT_DIR`), where **repo root** is the directory containing `microgpt_updated.py`. That matches `experiments/report_generator.py` and `annotate_run_reports.py`, so tools find the same files even if your shell cwd is elsewhere. Override with **`--output-dir`** on `microgpt_updated.py` (path is resolved from cwd). The stem encodes `L/E/H/B/S/T/seed` (per-head width is `N_EMBD//N_HEAD` and is not a separate filename token) plus a trailing **`_YYYYMMDD_HHMMSS`** suffix in **local wall-clock time** when the path is built (approximate end; for uniqueness only). **Authoritative** start/end/duration are in `--- Run timing ---` as ISO-8601 **UTC** and **local-with-offset** pairs. In the `T` token, the decimal point is written as `p` (and a leading minus as `m`) so the stem stays token-friendly. See `format_run_output_path()` in `microgpt_updated.py` and `format_run_output_path_for_params()` in `run_report/paths.py`.
 - **Past reports:** to add or refresh the narrative on files saved before the narrative existed, run from the repo root:
 
   ```bash
@@ -311,7 +350,7 @@ After **`microgpt_updated.py`** finishes, it writes a text file under **`outputs
 
 ### Comparing two reports
 
-Use **`compare_run_reports.py`** when you want a quick diff between runs (e.g. after a hyperparameter sweep or a code change): it prints differences in the **config block** in a fixed order (`N_LAYER`, **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**, then remaining keys). **`HEAD_DIM`** is included and annotated as **calculated from `N_EMBD` and `N_HEAD`**. The tool also diffs the **final training loss** and each **inference sample** line (side-by-side; `*` marks a mismatch). Narrative text, experiment-suite notes, quality blocks, loss-history CSV, and the parameter glossary are **not** compared as structured fields—only parsed config keys, scalar final loss, and ordered samples drive the exit code.
+Use **`compare_run_reports.py`** when you want a quick diff between runs (e.g. after a hyperparameter sweep or a code change): it prints differences in the **config block** in a fixed order (`N_LAYER`, **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**, then remaining keys). **`HEAD_DIM`** is included and annotated as **calculated from `N_EMBD` and `N_HEAD`**. The tool also diffs the **final training loss** and each **inference sample** line (side-by-side; `*` marks a mismatch). When both reports include `--- Run timing ---`, it prints **start/end (UTC and local) and duration** for each run (informational; does not affect exit code). Narrative text, experiment-suite notes, quality blocks, loss-history CSV, and the parameter glossary are **not** compared as structured fields—only parsed config keys, scalar final loss, and ordered samples drive the exit code.
 
 If **both** reports contain `--- Loss history (CSV: step,loss) ---`, the tool also prints **text graphs**: shared-scale min–mean–max bands per bin, a Δ row between runs, and RMSE / mean |Δ| over binned means (implementation: `run_report/text_loss_plot.py`).
 
@@ -326,7 +365,7 @@ python compare_run_reports.py outputs/output_A.txt outputs/output_B.txt --loss-b
 
 ### Example artifacts (preview)
 
-The **[`example-experiments/`](./example-experiments/)** folder holds real artifacts from the **4-head vs 1-head @ 1000 steps** pair in [Run experiments examples](#run-experiments-examples). Open the files directly, or skim the excerpts below.
+The **[`example-experiments/`](./example-experiments/)** folder holds real artifacts from the **4-head vs 1-head @ 1000 steps** pair in [Run experiments examples](#run-experiments-examples). These reports were saved **before** the **`--- Run timing ---`** block existed (compare/HTML may show filename-derived hints only). Open the files directly, or skim the excerpts below.
 
 | File | What it is |
 |------|------------|
@@ -403,7 +442,7 @@ Your own sweeps still write to gitignored **`outputs/`**; only **`example-experi
 
 ### HTML comparison (multi-run)
 
-After you have two or more `output_*.txt` files (for example from head-count or `N_EMBD` sweeps), **`experiments/report_generator.py`** builds one HTML page with: **shared vs varying training config** (same key order as `compare_run_reports.py`, including **`HEAD_DIM` after `N_EMBD` and `N_HEAD`**, with a **calculated-field** hint), the **quality summary** table (final loss, tiers, first sample), **aligned inference samples** across all runs when there are 2+ files (with `*` on rows that differ), **loss history text graphs** when reports embed CSV history (one run → single ASCII curve; several → baseline = lowest final loss among runs with history, each other run compared to that baseline; tune with `--loss-bins` / `--loss-height`), and **tier bar charts** for runs that have semantic metrics. Reports **without** a semantic quality block are **legacy**: one collapsed table row plus filenames/losses; tier bars only for modern runs.
+After you have two or more `output_*.txt` files (for example from head-count or `N_EMBD` sweeps), **`experiments/report_generator.py`** builds one HTML page with: **shared vs varying training config** (same key order as `compare_run_reports.py`, including **`HEAD_DIM` after `N_EMBD` and `N_HEAD`**, with a **calculated-field** hint), the **quality summary** table (final loss, tiers, first sample), **run timing** columns (duration, start/end UTC and local when reports include `--- Run timing ---`), **aligned inference samples** across all runs when there are 2+ files (with `*` on rows that differ), **loss history text graphs** when reports embed CSV history (one run → single ASCII curve; several → baseline = lowest final loss among runs with history, each other run compared to that baseline; tune with `--loss-bins` / `--loss-height`), and **tier bar charts** for runs that have semantic metrics. Reports **without** a semantic quality block are **legacy**: one collapsed table row plus filenames/losses; tier bars only for modern runs.
 
 ```bash
 # From anywhere: defaults to outputs/output_*.txt under the repo root; writes outputs/comparison_report.html
@@ -502,7 +541,7 @@ python compare_run_reports.py outputs/output_….txt outputs/output_….txt
 - **Batch HTML summaries**: See [HTML comparison (multi-run)](#html-comparison-multi-run).
 - **Educational comments**: The refactored file includes explanatory comments; avoid stripping them without an explicit request.
 - **KV cache and training**: During training, cached keys/values are part of the live graph for that forward (they are not treated as detached inference-only tensors). Understand this before changing caching behavior.
-- **Testing**: From the repo root, run `python -m pytest tests/ -q` (or targeted modules: `test_evaluation`, `test_text_loss_plot`, `test_report_generator`, `test_paths`). See [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) for the semantic-quality / run-report workstream notes.
+- **Testing**: From the repo root, run `python -m pytest tests/ -q` (or targeted modules: `test_evaluation`, `test_quality`, `test_experiment_config`, `test_sweep_grid`, `test_timing`, `test_text_loss_plot`, `test_report_generator`, `test_paths`). See [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) for the semantic-quality / run-report workstream notes.
 
 For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`](./CLAUDE.md)**.
 
@@ -518,6 +557,7 @@ For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`]
 - [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) — autograd: `Value`, graph, backward, worked examples
 - [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) — train, compare runs, HTML reports
 - [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) — sample quality tiers and metrics
+- [`experiments/configs/README.md`](./experiments/configs/README.md) — numbered grid sweep JSON configs (`0_` … `4_`)
 - [`CLAUDE.md`](./CLAUDE.md) — file layout and conventions for contributors
 
 **External**

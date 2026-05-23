@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .narrative import format_run_narrative_lines, run_parameter_glossary_lines
+from .timing import RunTiming, format_run_timing_lines
 
 
 def build_run_report_lines(
@@ -26,6 +27,7 @@ def build_run_report_lines(
     char_dist_score: float | None = None,
     quality_metrics: dict[str, float] | None = None,
     semantic_quality: dict[str, object] | None = None,
+    run_timing: RunTiming | None = None,
 ) -> list[str]:
     """Assemble the full run report as lines (no trailing newline on last line — caller joins)."""
     extra = experiment_suite_lines if experiment_suite_lines is not None else []
@@ -45,6 +47,10 @@ def build_run_report_lines(
             num_samples=len(samples),
         ),
         *extra,
+    ]
+    if run_timing is not None:
+        lines.extend(format_run_timing_lines(run_timing))
+    lines.extend([
         "--- Config (this run) ---",
         f"N_LAYER={n_layer}",
         f"N_EMBD={n_embd}",
@@ -63,7 +69,7 @@ def build_run_report_lines(
         "",
         f"Final loss (last training step): {final_loss:.6f}",
         "",
-    ]
+    ])
     if char_dist_score is not None:
         lines.append("--- Sample quality (character-level) ---")
         lines.append(f"CHAR_DIST_SIMILARITY={char_dist_score:.6f}")

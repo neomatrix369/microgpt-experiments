@@ -1,6 +1,9 @@
 # Experiment workflow
 
-One linear guide: **train runs → save reports → compare results**. For concepts (loss, tiers, autograd), see [`learn-before-you-code.md`](./learn-before-you-code.md). For CLI flag tables, see [`README.md`](../README.md). **Doc index:** [`docs/README.md`](./README.md). **First run:** [`QUICKSTART.md`](../QUICKSTART.md).
+One linear guide: **train runs → save reports → compare results**.
+
+**Navigation:** [`docs/README.md`](./README.md) · [`QUICKSTART.md`](../QUICKSTART.md) · [`README.md`](../README.md)  
+**Related:** [concepts](./learn-before-you-code.md) · [autograd](./autograd-deep-dive.md) · [quality tiers](./M2-semantic-quality.md) · [sweep configs](../experiments/configs/README.md)
 
 ---
 
@@ -18,13 +21,15 @@ Each training run produces a **run report** (`outputs/output_*.txt`): config, fi
 flowchart LR
   subgraph train [Train]
     CLI["microgpt_updated.py\n+ CLI flags"]
-    Out["outputs/output_*.txt"]
+    Sweep["experiments/sweep.py\n+ JSON config"]
+    Out["outputs/output_*.txt\nor sweeps/.../"]
   end
   subgraph compare [Compare]
     Diff["compare_run_reports.py\n2 files"]
     HTML["report_generator.py\n2+ files"]
   end
   CLI --> Out
+  Sweep --> Out
   Out --> Diff
   Out --> HTML
 ```
@@ -69,6 +74,8 @@ python experiments/report_generator.py \
 | Inference samples | Side-by-side generated names (`*` = differ) |
 | `TIER1_REAL_RATIO` etc. | Heuristic name quality ([details](./M2-semantic-quality.md)) |
 | Loss history ASCII | Learning curve shape (when both reports include CSV) |
+| **`--- Run timing ---`** / compare timing section | Authoritative wall clock: UTC + local ISO start/end, duration, timezone |
+| Filename `_YYYYMMDD_HHMMSS` | Approximate local time for uniqueness only — use **`--- Run timing ---`** for real timestamps |
 
 ---
 
@@ -102,12 +109,76 @@ python experiments/report_generator.py -o outputs/comparison_report.html
 
 ---
 
+## Grid sweep (automated search)
+
+For systematic hyperparameter search ranked by **`OVERALL_QUALITY_SCORE`**, use **`experiments/sweep.py`** with a numbered JSON config under **`experiments/configs/`**. Files are prefixed **`0_` … `4_`** so run order is obvious; see [`experiments/configs/README.md`](../experiments/configs/README.md).
+
+**Baseline** (default in the example configs — H4 @ 1000 steps):
+
+```text
+TIER1_REAL_RATIO=0.550000
+TIER2_PLAUSIBLE_RATIO=0.450000
+TIER3_NONSENSE_RATIO=0.000000
+OVERALL_QUALITY_SCORE=0.582500
+```
+
+Each run prints tier deltas vs that baseline; the sweep ends with a ranked table, **`sweep_summary.csv`** (includes per-run UTC/local start/end and duration), and **`sweep_timing.txt`** (whole-grid wall clock) in the config’s `output_dir` (e.g. `outputs/sweeps/1-minimal/`).
+
+```bash
+# List configs in recommended order
+python experiments/sweep.py --list-configs
+
+# Quick pipeline check (~seconds): 2 runs × 5 steps
+python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
+
+# Step 1 — preview then run (4 runs: n_head x num_steps; slow)
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --dry-run
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json
+
+# Re-rank without retraining
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --summarize-only
+
+# Optional HTML after sweep
+python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --summarize-only --html
+```
+
+| Order | Config | Grid focus | ~Runs |
+|------:|--------|------------|------:|
+| 0 | `0_sweep-smoke-test.json` | `n_head` × 5 steps (pipeline check) | 2 |
+| 1 | `1_sweep-minimal.json` | `n_head` × `num_steps` | 4 |
+| 2 | `2_sweep-arch.json` | `n_layer` × `n_embd` × `n_head` | 12 |
+| 3 | `3_sweep-arch-steps.json` | arch + `num_steps` | 6 |
+| 4 | `4_sweep-full.json` | steps + `temperature` + `learning_rate` | 18 |
+
+Run configs in order when learning the tool. Use **`--max-runs N`** on larger grids. **`HEAD_DIM`** is never swept (derived from `n_embd` and `n_head`). Console progress shows sweep **`elapsed … | ETA …`** alongside the current run index.
+
+**What the sweep optimizes:** simple heuristic tier scores (not ground-truth name quality). Computation lives in **`mgpt/evaluation.py`**; the overall formula, baseline compare, and ranking key live in **`mgpt/quality.py`**. To plug in better metrics, extend those modules — see **[M2-semantic-quality.md → Extending quality scoring](./M2-semantic-quality.md#extending-quality-scoring-yourself)**.
+
+---
+
+## Run timing and progress
+
+Training and sweeps are slow (scalar autograd in Python). The tooling records **wall-clock time** at three levels:
+
+| Level | Where | What you get |
+|-------|--------|--------------|
+| **Live progress** | Terminal during training/sweep | `elapsed … \| ETA …` on the updating line (padded so ETA is not clipped) |
+| **Per run** | `--- Run timing ---` in each `output_*.txt` | UTC + local ISO start/end, `DURATION_SECONDS`, `TIMEZONE` |
+| **Per sweep** | `sweep_summary.csv` + `sweep_timing.txt` | Per-run timing columns in CSV; whole-grid start/end/duration in `sweep_timing.txt` |
+| **Compare / HTML** | `compare_run_reports.py`, `report_generator.py` | Timing printed or tabulated when reports include the block |
+
+**Policy:** filename `_YYYYMMDD_HHMMSS` suffixes are for **uniqueness** (approximate local time when the path is built). **`--- Run timing ---`** is **authoritative** for start, end, duration, and timezone. Legacy reports without that block may show a filename-derived hint in compare/HTML only.
+
+Implementation: **`run_report/timing.py`** · wired through **`mgpt/experiment.py`** and **`experiments/sweep.py`**.
+
+---
+
 ## Which compare tool?
 
 | Tool | Best for | Input | Output |
 |------|----------|-------|--------|
-| **`compare_run_reports.py`** | Exact A vs B diff in the terminal | Exactly **2** report paths | Config diff, loss, samples, optional loss ASCII; exit `0`/`1`/`2` |
-| **`experiments/report_generator.py`** | Side-by-side table for **2+** runs | Report paths or default glob `outputs/output_*.txt` | Single **HTML** page: config, quality, samples, tier bars, loss graphs |
+| **`compare_run_reports.py`** | Exact A vs B diff in the terminal | Exactly **2** report paths | Config diff, loss, samples, optional run timing display, optional loss ASCII; exit `0`/`1`/`2` (timing not in exit code) |
+| **`experiments/report_generator.py`** | Side-by-side table for **2+** runs | Report paths or default glob `outputs/output_*.txt` | Single **HTML** page: config, quality, timing columns, samples, tier bars, loss graphs |
 
 **Rule of thumb:** use the CLI diff for a quick pairwise check; use HTML when you have a sweep or want tier bars and aligned sample grids.
 
@@ -120,13 +191,13 @@ python experiments/report_generator.py
 python experiments/report_generator.py path/a.txt path/b.txt -o /tmp/cmp.html
 ```
 
-Compare tools **ignore** narrative and quality blocks for equality checks (CLI exit code); they still **display** quality in HTML. See [README Run reports](../README.md#run-reports).
+Compare tools **ignore** narrative, quality blocks, loss history, and timing for **equality checks** (CLI exit code); they still **display** quality in HTML and **print/show timing** when present. See [README Run reports](../README.md#run-reports).
 
 ---
 
 ## Compare without training
 
-Open these checked-in artifacts from [`example-experiments/`](../example-experiments/):
+Open these checked-in artifacts from [`example-experiments/`](../example-experiments/) (saved **before** the **`--- Run timing ---`** block — compare/HTML show config, loss, and samples; timing columns stay empty or use filename hints):
 
 | File | Purpose |
 |------|---------|
@@ -162,7 +233,10 @@ python experiments/report_generator.py \
 
 ## Related docs
 
+- [`docs/README.md`](./README.md) — documentation index by persona
+- [`QUICKSTART.md`](../QUICKSTART.md) — minimal first run
 - [`learn-before-you-code.md`](./learn-before-you-code.md) — what loss, samples, and tiers mean
-- [`M2-semantic-quality.md`](./M2-semantic-quality.md) — how generated names are scored
 - [`autograd-deep-dive.md`](./autograd-deep-dive.md) — how training computes gradients
+- [`M2-semantic-quality.md`](./M2-semantic-quality.md) — scoring, `mgpt/quality.py`, extending metrics
+- [`experiments/configs/README.md`](../experiments/configs/README.md) — numbered sweep JSON files
 - [`README.md`](../README.md) — architecture, config tables, example artifact excerpts

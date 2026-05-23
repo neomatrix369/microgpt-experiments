@@ -34,27 +34,14 @@ from pathlib import Path
 from run_report import (
     DERIVED_EXPERIMENT_CFG_KEYS,
     cfg_keys_for_experiment_table,
-    experiment_cfg_calculated_caption,
     loss_curve_comparison_lines,
     parse_run_report_text,
 )
-
-
-def _fmt_val(v: object) -> str:
-    if isinstance(v, float):
-        return f"{v:g}"
-    return str(v)
-
-
-def _config_print_label(key: str) -> str:
-    cap = experiment_cfg_calculated_caption(key)
-    return f"{key} ({cap})" if cap else key
-
-
-def _config_line(key: str, val: object) -> str:
-    cap = experiment_cfg_calculated_caption(key)
-    suffix = f"  — {cap}" if cap else ""
-    return f"{key}={_fmt_val(val)}{suffix}"
+from run_report.display import (
+    config_print_label,
+    format_cfg_value,
+    format_config_line,
+)
 
 
 def parse_run_report(
@@ -63,6 +50,41 @@ def parse_run_report(
     """Parse a run report; kept for importers. Prefer :func:`parse_run_report_text`."""
     p = parse_run_report_text(text)
     return p.config, p.final_loss, p.samples, p.loss_history
+
+
+def _print_timing_comparison(path_a: Path, path_b: Path, text_a: str, text_b: str) -> None:
+    parsed_a = parse_run_report_text(text_a, report_filename=path_a.name)
+    parsed_b = parse_run_report_text(text_b, report_filename=path_b.name)
+    ta = parsed_a.run_timing
+    tb = parsed_b.run_timing
+    ha = parsed_a.filename_timestamp_hint
+    hb = parsed_b.filename_timestamp_hint
+    if ta is None and tb is None and not ha and not hb:
+        return
+    print("--- Run timing ---")
+    if ta is None:
+        if ha:
+            print(f"  A: approximate end from filename: {ha}")
+        else:
+            print(f"  A: (no timing block — legacy report: {path_a.name})")
+    else:
+        print(f"  A started UTC:  {ta.started_utc}")
+        print(f"  A started local:{ta.started_local}")
+        print(f"  A ended UTC:    {ta.ended_utc}")
+        print(f"  A ended local:  {ta.ended_local}")
+        print(f"  A duration:     {ta.duration_seconds:.3f}s ({ta.timezone})")
+    if tb is None:
+        if hb:
+            print(f"  B: approximate end from filename: {hb}")
+        else:
+            print(f"  B: (no timing block — legacy report: {path_b.name})")
+    else:
+        print(f"  B started UTC:  {tb.started_utc}")
+        print(f"  B started local:{tb.started_local}")
+        print(f"  B ended UTC:    {tb.ended_utc}")
+        print(f"  B ended local:  {tb.ended_local}")
+        print(f"  B duration:     {tb.duration_seconds:.3f}s ({tb.timezone})")
+    print()
 
 
 def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: int) -> int:
@@ -82,7 +104,7 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         if va != vb:
             exit_code = 1
             config_diff.append(
-                (k, _fmt_val(va) if va is not None else "—", _fmt_val(vb) if vb is not None else "—")
+                (k, format_cfg_value(va) if va is not None else "—", format_cfg_value(vb) if vb is not None else "—")
             )
         else:
             shared_keys.add(k)
@@ -95,13 +117,13 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         if shared_keys:
             print("--- Shared config (both runs) ---")
             for k in cfg_keys_for_experiment_table(shared_keys):
-                print(f"  {_config_line(k, cfg_a[k])}")
+                print(f"  {format_config_line(k, cfg_a[k])}")
             print()
         print("--- Config differences ---")
-        prefix_w = max(len(f"{_config_print_label(k)}:  ") for k, _, _ in config_diff)
+        prefix_w = max(len(f"{config_print_label(k)}:  ") for k, _, _ in config_diff)
         w_a = max(len(f"A={a}") for _, a, _ in config_diff)
         for k, a, b in config_diff:
-            label = _config_print_label(k)
+            label = config_print_label(k)
             pad = prefix_w - len(f"{label}:  ")
             left = f"A={a}".ljust(w_a)
             print(f"  {label}:  {' ' * pad}{left}  |  B={b}")
@@ -110,7 +132,7 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         print("--- Config (same both runs) ---")
         display_keys = cfg_keys_for_experiment_table(set(cfg_a))
         for k in display_keys:
-            print(f"  {_config_line(k, cfg_a[k])}")
+            print(f"  {format_config_line(k, cfg_a[k])}")
         print()
 
     if loss_a != loss_b:
@@ -121,6 +143,8 @@ def compare_reports(path_a: Path, path_b: Path, *, loss_bins: int, loss_height: 
         print()
     else:
         print(f"--- Final loss: {loss_a:.6f} (same) ---\n")
+
+    _print_timing_comparison(path_a, path_b, text_a, text_b)
 
     if hist_a is not None and hist_b is not None:
         print(

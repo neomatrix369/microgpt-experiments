@@ -40,3 +40,5 @@ input.txt
 
 *.htm*
 !example-experiments/*.html
+
+.cursor/
