@@ -8,6 +8,8 @@ There is **no** `requirements.txt` or `pyproject.toml` by design: only the Pytho
 
 | Path | Role |
 |------|------|
+| `QUICKSTART.md` | **Fastest first run** — Python check, one command, links to experiment and learning docs. |
+| `docs/README.md` | **Documentation index** — guides organized by persona (learner, workshop, explorer, experimenter, contributor). |
 | `microgpt.py` | Compact “single story” version: one script, global state, matches the original blog-style walkthrough. |
 | `microgpt_updated.py` | Refactored entry: hyperparameters (module constants, overridable via **`argparse`** CLI), `train()` / `generate()` / `main()`, `save_run_report()`, and richer comments. Imports the **`mgpt`** package (autograd, transformer forward, data) and **`run_report`** (on-disk report format). Prefer this for changes that need structure or tests. |
 | `mgpt/` | Package: `Value` (scalar autograd), ops (`linear`, `softmax`, `rmsnorm`, `make_matrix`), transformer step `gpt()`, dataset + `Tokeniser` (`load_dataset`, `build_tokeniser`), sample metrics (`evaluation.py`: character similarity + three-tier semantic heuristics; `compute_sample_quality_metrics` / `format_sample_quality_console_lines` feed the refactored entry and reports). Stdlib only. |
@@ -34,7 +36,7 @@ python microgpt_updated.py --help
 python microgpt.py
 ```
 
-**How to use microgpt_updated.py** (baseline, `--help`, `--input`, source-only vs CLI, sweep reproduction, report tools): **`README.md` → [How to use microgpt_updated.py](README.md#how-to-use-microgpt_updatedpy)**. **Concepts for newcomers:** **`docs/learn-before-you-code.md`**. **Autograd:** **`docs/autograd-deep-dive.md`** → `mgpt/value.py`. **Experiments (train → compare):** **`docs/experiment-workflow.md`**.
+**How to use microgpt_updated.py** (baseline, `--help`, `--input`, source-only vs CLI, sweep reproduction, report tools): **`README.md` → [How to use microgpt_updated.py](README.md#how-to-use-microgpt_updatedpy)**. **First run:** **`QUICKSTART.md`**. **Doc index:** **`docs/README.md`**. **Concepts:** **`docs/learn-before-you-code.md`**. **Autograd:** **`docs/autograd-deep-dive.md`** → `mgpt/value.py`. **Experiments:** **`docs/experiment-workflow.md`**.
 
 **Run experiments examples** (distinct `N_HEAD` × `NUM_STEPS` from saved `output_*.txt`): **`README.md` → [Run experiments examples](README.md#run-experiments-examples)** and **`docs/M2-semantic-quality.md`** (Commands → *Run experiments examples*).
 
@@ -81,7 +83,9 @@ Run **`pytest`** from the repo root: `python -m pytest tests/ -q` (modules cover
 
 ## Git and docs
 
-- **`README.md`**: User-facing overview, architecture diagram, configuration tables, and pointers to this file.
+- **`README.md`**: User-facing overview, **Who is this for?** personas, architecture, configuration, run reports.
+- **`QUICKSTART.md`**: Minimal first run (workshop / playgroup entry).
+- **`docs/README.md`**: Documentation index by persona and task.
 - **`docs/learn-before-you-code.md`**: Beginner-friendly concepts and examples—read before diving into code.
 - **`docs/autograd-deep-dive.md`**: Autograd learning guide (`Value`, graph, `backward()`, worked examples, diagrams); read before `mgpt/value.py`.
 - **`docs/experiment-workflow.md`**: Train runs, save reports, compare with CLI or HTML; links to `example-experiments/`.

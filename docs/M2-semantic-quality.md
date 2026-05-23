@@ -2,7 +2,7 @@
 
 **Sample quality guide** — heuristic scoring of generated names after training.
 
-After training, **`microgpt_updated.py`** generates 20 strings and scores them. This page explains **what those scores mean** and how the code fits together. For the big-picture concepts (loss, temperature, attention), start with **[`learn-before-you-code.md`](./learn-before-you-code.md)**.
+After training, **`microgpt_updated.py`** generates 20 strings and scores them. This page explains **what those scores mean** and how the code fits together. For the big-picture concepts (loss, temperature, attention), start with **[`learn-before-you-code.md`](./learn-before-you-code.md)**. **Navigation:** [`docs/README.md`](./README.md).
 
 ---
 

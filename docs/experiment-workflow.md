@@ -1,6 +1,6 @@
 # Experiment workflow
 
-One linear guide: **train runs → save reports → compare results**. For concepts (loss, tiers, autograd), see [`learn-before-you-code.md`](./learn-before-you-code.md). For CLI flag tables, see [`README.md`](../README.md).
+One linear guide: **train runs → save reports → compare results**. For concepts (loss, tiers, autograd), see [`learn-before-you-code.md`](./learn-before-you-code.md). For CLI flag tables, see [`README.md`](../README.md). **Doc index:** [`docs/README.md`](./README.md). **First run:** [`QUICKSTART.md`](../QUICKSTART.md).
 
 ---
 

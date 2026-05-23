@@ -8,19 +8,24 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 
 **There is no `requirements.txt` or `pyproject.toml` on purpose:** only Python 3.
 
+**Jump to:** [Who is this for?](#who-is-this-for) | [Quickstart](QUICKSTART.md) | [Docs index](docs/README.md) | [Run](#quick-start) | [Experiments](#run-experiments-examples) | [Compare reports](#run-reports) | [Configuration](#configuration) | [Architecture](#architecture-high-level)
+
 ---
 
-## Start here (new to the project?)
+## Who is this for?
 
-| If you want to… | Read this first |
-|-----------------|-----------------|
-| **Learn the ideas** before opening code | **[`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md)** — tokens, loss, temperature, attention, sample quality, with small examples |
-| **Understand autograd** | **[`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md)** — `Value`, computation graph, `backward()`, diagrams and hand-traced examples |
-| **Run something** | [Quick start](#quick-start) below, then skim a checked-in report in [`example-experiments/`](./example-experiments/) |
-| **Run and compare experiments** | **[`docs/experiment-workflow.md`](./docs/experiment-workflow.md)** — train → `outputs/` → CLI diff or HTML (step-by-step recipe) |
-| **Change settings** | [Configuration](#configuration) and `python microgpt_updated.py --help` |
-| **Understand generated-name scoring** | [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) |
-| **Edit code or add features** | [`CLAUDE.md`](./CLAUDE.md) (maintainer / assistant conventions) |
+> Pick the row that matches you — each links to a **first step**, not the whole README.
+
+| Persona | Start here | What you will do |
+|---------|------------|------------------|
+| **Learner / student** | [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) | Understand tokens, loss, transformers, then read `mgpt/` and [`microgpt.py`](./microgpt.py) |
+| **Workshop / playgroup attendee** | [`QUICKSTART.md`](./QUICKSTART.md) → [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) | Run training, sweep `N_HEAD` / steps, compare reports |
+| **Curious explorer** | [`example-experiments/comparison_report.html`](./example-experiments/comparison_report.html) | Browse H4 vs H1 results **without training** |
+| **Experimenter** | [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) | Train → `outputs/` → CLI diff or HTML; read [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) for tier scores |
+| **Autograd-focused reader** | [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) | Diagrams + hand-traced `Value` / `backward()` before [`mgpt/value.py`](./mgpt/value.py) |
+| **Contributor / extender** | [`CLAUDE.md`](./CLAUDE.md) | Edit [`microgpt_updated.py`](./microgpt_updated.py) + [`mgpt/`](./mgpt/); report format in [`run_report/`](./run_report/) |
+
+**All docs by topic:** [`docs/README.md`](./docs/README.md)
 
 **Compare tools (quick pick):**
 
@@ -29,10 +34,24 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 | Diff **two** runs in the terminal | `compare_run_reports.py` |
 | Table of **two or more** runs in a browser | `experiments/report_generator.py` |
 
+---
+
+## Start here (lookup table)
+
+| If you want to… | Read this first |
+|-----------------|-----------------|
+| **Run something now** | [`QUICKSTART.md`](./QUICKSTART.md) or [Quick start](#quick-start) below |
+| **Learn the ideas** before opening code | [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) |
+| **Understand autograd** | [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) |
+| **Run and compare experiments** | [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) |
+| **Change settings** | [Configuration](#configuration) · `python microgpt_updated.py --help` |
+| **Understand generated-name scoring** | [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) |
+| **Edit code or add features** | [`CLAUDE.md`](./CLAUDE.md) |
+
 Suggested paths:
 
 - **Learn:** learn guide → autograd deep dive (optional) → quick start → example report → code  
-- **Experiment:** [experiment workflow](./docs/experiment-workflow.md) → run sweep commands → compare or HTML
+- **Experiment:** QUICKSTART → [experiment workflow](./docs/experiment-workflow.md) → compare or HTML
 
 ---
 
@@ -53,6 +72,8 @@ Training is **intentionally slow** (scalar ops in Python). That is expected and 
 ---
 
 ## Quick start
+
+> **New here?** [`QUICKSTART.md`](./QUICKSTART.md) is the shortest path to a first run. This section adds detail and script choice.
 
 ```bash
 # Recommended: structured entry with types, Tokeniser, train()/generate()/main()
@@ -168,6 +189,8 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`outputs/`** | Default directory for run reports (`output_*.txt`) and `comparison_report.html`; gitignored. Created automatically on write. |
 | **`output_*.txt`** | Optional: written by `microgpt_updated.py` under **`outputs/`** by default; not produced by `microgpt.py`. Names encode hyperparameters and a local `_YYYYMMDD_HHMMSS` suffix (see [Run reports](#run-reports)). |
 | **`README.md`** | This overview (architecture, config, run reports). |
+| **`QUICKSTART.md`** | **Fastest first run** — Python check, one command, smoke browse of `example-experiments/`. |
+| **`docs/README.md`** | **Documentation index** — all guides by persona and task. |
 | **`docs/learn-before-you-code.md`** | **Start here for concepts** — plain-language primer with examples before reading code. |
 | **`docs/autograd-deep-dive.md`** | **Autograd learning guide** — `Value`, graph, `backward()`, worked examples, diagrams; read before `mgpt/value.py`. |
 | **`docs/experiment-workflow.md`** | **Experiment recipe** — train runs, save reports, compare CLI vs HTML; links to `example-experiments/`. |
@@ -489,6 +512,8 @@ For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`]
 
 **In this repo**
 
+- [`QUICKSTART.md`](./QUICKSTART.md) — minimal first run
+- [`docs/README.md`](./docs/README.md) — documentation index by persona
 - [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) — concepts and examples before diving into code
 - [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) — autograd: `Value`, graph, backward, worked examples
 - [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) — train, compare runs, HTML reports

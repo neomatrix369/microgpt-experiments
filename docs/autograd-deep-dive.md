@@ -2,7 +2,7 @@
 
 How **automatic differentiation** works in microgpt: the `Value` class, the computation graph, `backward()`, and where it all connects to training.
 
-**Prerequisites:** skim [`learn-before-you-code.md`](./learn-before-you-code.md) for the big picture (loss, tokens, training loop).
+**Prerequisites:** skim [`learn-before-you-code.md`](./learn-before-you-code.md) for the big picture (loss, tokens, training loop). **Navigation:** [`docs/README.md`](./README.md).
 
 **Read this doc** before [`mgpt/value.py`](../mgpt/value.py) if autograd is new; read **alongside** the file if you learn by doing.
 
