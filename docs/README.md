@@ -13,7 +13,7 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 | **Learner / student** | [learn-before-you-code.md](./learn-before-you-code.md) | [autograd-deep-dive.md](./autograd-deep-dive.md) → `mgpt/value.py` → `microgpt.py` |
 | **Workshop / playgroup attendee** | [QUICKSTART.md](../QUICKSTART.md) | [experiment-workflow.md](./experiment-workflow.md) → [README Run experiments](../README.md#run-experiments-examples) |
 | **Curious explorer** (no training) | [example-experiments/](../example-experiments/) | Open `comparison_report.html` in a browser |
-| **Experimenter** (sweeps & compare) | [experiment-workflow.md](./experiment-workflow.md) | Grid: `0_sweep-smoke-test.json` … `4_sweep-full.json` · tiers: [M2-semantic-quality.md](./M2-semantic-quality.md) |
+| **Experimenter** (sweeps & compare) | [experiment-workflow.md](./experiment-workflow.md) | Grid: `0_sweep-smoke-test.json` … `4_sweep-full.json` · tiers: [M2-semantic-quality.md](./M2-semantic-quality.md) · timing: [Run timing](./experiment-workflow.md#run-timing-and-progress) |
 | **Contributor / extender** | [CLAUDE.md](../CLAUDE.md) | [README repository layout](../README.md#repository-layout) |
 
 ---
@@ -24,7 +24,7 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 |-----|----------------|
 | [learn-before-you-code.md](./learn-before-you-code.md) | Tokens, BOS, loss, temperature, transformer map, sample tiers — **read before code** |
 | [autograd-deep-dive.md](./autograd-deep-dive.md) | `Value`, computation graph, `backward()`, worked examples, diagrams |
-| [experiment-workflow.md](./experiment-workflow.md) | Train → `outputs/` → CLI diff or HTML — **linear experiment recipe** |
+| [experiment-workflow.md](./experiment-workflow.md) | Train → `outputs/` → CLI diff or HTML — **linear experiment recipe** (includes run timing and sweep artifacts) |
 | [M2-semantic-quality.md](./M2-semantic-quality.md) | Sample quality guide — real / plausible / nonsense tiers, metrics, commands |
 
 ---
@@ -36,12 +36,14 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 | Default training run | `python microgpt_updated.py` |
 | Head-count sweep (manual CLI) | See [experiment-workflow.md](./experiment-workflow.md#canonical-sweep-commands) |
 | Grid sweep (JSON configs) | `python experiments/sweep.py --list-configs` · smoke: `0_sweep-smoke-test.json` |
-| Diff two runs | `python compare_run_reports.py outputs/a.txt outputs/b.txt` |
-| HTML table (2+ runs) | `python experiments/report_generator.py` |
+| Diff two runs (config, loss, samples; timing display) | `python compare_run_reports.py outputs/a.txt outputs/b.txt` |
+| HTML table (2+ runs; timing columns when present) | `python experiments/report_generator.py` |
+| Wall-clock in a saved report | `--- Run timing ---` block in `outputs/output_*.txt` |
+| Sweep timing summary | `outputs/sweeps/<order>-<name>/sweep_timing.txt` |
 | Browse demo results | [example-experiments/comparison_report.html](../example-experiments/comparison_report.html) |
 | All CLI flags | `python microgpt_updated.py --help` |
 
-**Compare tools:** terminal diff = `compare_run_reports.py` · browser table = `experiments/report_generator.py`
+**Compare tools:** terminal diff = `compare_run_reports.py` (shows timing when present; not part of exit code) · browser table = `experiments/report_generator.py` (duration + start/end columns)
 
 ---
 
@@ -50,13 +52,13 @@ All guides for **microgpt**, organized by **who you are** and **what you want to
 ### Learn the system (≈1–2 hours reading)
 
 ```text
-learn-before-you-code.md → autograd-deep-dive.md → mgpt/value.py → microgpt_updated.py train()
+learn-before-you-code.md → autograd-deep-dive.md → mgpt/value.py → mgpt/experiment.py train()
 ```
 
 ### Run a workshop experiment (≈hours of CPU time)
 
 ```text
-QUICKSTART.md → experiment-workflow.md → compare or HTML → M2-semantic-quality.md (read scores)
+QUICKSTART.md → experiment-workflow.md → compare or HTML → M2-semantic-quality.md (read scores) → Run timing section when planning long sweeps
 ```
 
 ### Skim without running

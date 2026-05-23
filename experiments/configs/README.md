@@ -24,7 +24,16 @@ python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json
 python experiments/sweep.py --config experiments/configs/2_sweep-arch.json --dry-run
 ```
 
-Outputs land under `outputs/sweeps/<order>-<name>/` (e.g. `outputs/sweeps/1-minimal/`). See [`docs/experiment-workflow.md`](../../docs/experiment-workflow.md#grid-sweep-automated-search).
+Outputs land under `outputs/sweeps/<order>-<name>/` (e.g. `outputs/sweeps/1-minimal/`):
+
+| Artifact | Contents |
+|----------|----------|
+| **`output_*.txt`** | One run report per grid point (config, quality, samples, **`--- Run timing ---`**) |
+| **`sweep_summary.csv`** | Ranked rows with quality metrics, baseline deltas, and per-run timing columns (`started_utc`, `started_local`, `ended_utc`, `ended_local`, `duration_seconds`, `timezone`) |
+| **`sweep_timing.txt`** | Whole-grid wall clock (`SWEEP_*` fields: UTC + local start/end, duration, timezone) |
+| **`comparison_report.html`** | Optional — pass **`--html`** to **`--summarize-only`** or build manually with **`report_generator.py`** |
+
+See [`docs/experiment-workflow.md`](../../docs/experiment-workflow.md#grid-sweep-automated-search) and **[Run timing](../../docs/experiment-workflow.md#run-timing-and-progress)**.
 
 **Quality scoring:** sweeps rank by `overall_quality_score` (simple heuristics). All compare/rank logic is centralized in **`mgpt/quality.py`**; tier rules are in **`mgpt/evaluation.py`**. To use your own objective, edit those files — see **`docs/M2-semantic-quality.md`**.
 

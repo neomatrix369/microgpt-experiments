@@ -202,6 +202,16 @@ Tiers can overlap in edge cases; treat **overall score** and **tier ratios** as 
 
 ---
 
+## Run timing: how long did training take?
+
+Scalar autograd in Python is slow on purpose. While training runs, the terminal shows **live progress**: loss, step count, **`elapsed … | ETA …`**, and after training a **`Run wall clock:`** summary.
+
+Saved run reports include **`--- Run timing ---`**: start and end in **UTC** and **local time with offset**, plus **`DURATION_SECONDS`** and **`TIMEZONE`**. That block is **authoritative**. The `_YYYYMMDD_HHMMSS` suffix in the filename is only for **uniqueness** (approximate local time when the file path was built).
+
+Grid sweeps also write **`sweep_summary.csv`** (per-run timing columns) and **`sweep_timing.txt`** (whole-grid wall clock). Compare and HTML tools show timing when the block is present. Full recipe: [`experiment-workflow.md` → Run timing](./experiment-workflow.md#run-timing-and-progress).
+
+---
+
 ## Suggested reading order
 
 1. **This page** — concepts and vocabulary.
@@ -210,7 +220,7 @@ Tiers can overlap in edge cases; treat **overall score** and **tier ratios** as 
 4. **Skim a report** — `example-experiments/output_L1_E16_H4_B16_S1000_….txt` without training first.
 5. **Pick an entry script:**
    - **`microgpt.py`** — one continuous story (~300 lines); best “read like a blog post.”
-   - **`microgpt_updated.py`** — same ideas, split into `train()` / `generate()`; use for CLI and tests.
+   - **`microgpt_updated.py`** — CLI entry; calls **`mgpt/experiment.py`** (`run_experiment()`, `train()`, `generate()`).
 6. **Autograd** — [`autograd-deep-dive.md`](./autograd-deep-dive.md) (diagrams + hand traces), then `mgpt/value.py` → `ops.py` → `model.py`.
 7. **Experiments** — [`experiment-workflow.md`](./experiment-workflow.md) (train → compare), or open `example-experiments/comparison_report.html`.
 8. **[Karpathy’s microGPT post](https://karpathy.github.io/2026/02/12/microgpt/)** — deeper theory when you want the original narrative.

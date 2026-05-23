@@ -27,9 +27,9 @@ python microgpt_updated.py
 **Expect (this takes a while — scalar autograd is slow on purpose):**
 
 1. Dataset and vocabulary sizes printed once.
-2. Training loss updating on one line (~1000 steps by default).
+2. Training loss updating on one line (~1000 steps by default) with live **`elapsed … | ETA …`**, then **`Run wall clock:`** after training.
 3. **20 generated name-like lines** and a sample-quality summary.
-4. A run report saved under **`outputs/output_*.txt`**.
+4. A run report saved under **`outputs/output_*.txt`** (includes **`--- Run timing ---`** when using current code).
 
 If `input.txt` is missing, the script downloads the classic names dataset automatically.
 
@@ -47,7 +47,7 @@ Browse checked-in artifacts — no GPU, no long run:
 
 | Open this | What it is |
 |-----------|------------|
-| [`example-experiments/output_L1_E16_H4_B16_S1000_….txt`](example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt) | Full run report (4 heads) |
+| [`example-experiments/output_L1_E16_H4_B16_S1000_….txt`](example-experiments/output_L1_E16_H4_B16_S1000_T0p5_seed42_20260424_152649.txt) | Full run report (4 heads; pre-**`--- Run timing ---`** era) |
 | [`example-experiments/comparison_report.html`](example-experiments/comparison_report.html) | HTML comparison (4-head vs 1-head) |
 
 ---
@@ -77,7 +77,7 @@ python experiments/sweep.py --config experiments/configs/1_sweep-minimal.json --
 python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
 ```
 
-Outputs land in **`outputs/sweeps/0-smoke-test/`** (`sweep_summary.csv` + ranked table vs the H4 @ 1000 baseline). For full sweeps and quality-score details, see **[docs/experiment-workflow.md](docs/experiment-workflow.md#grid-sweep-automated-search)**.
+Outputs land in **`outputs/sweeps/0-smoke-test/`** (`sweep_summary.csv` with per-run timing columns, **`sweep_timing.txt`** for whole-grid wall clock, plus ranked table vs the H4 @ 1000 baseline). For full sweeps and quality-score details, see **[docs/experiment-workflow.md](docs/experiment-workflow.md#grid-sweep-automated-search)**.
 
 ---
 

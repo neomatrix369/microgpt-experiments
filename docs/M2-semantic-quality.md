@@ -112,7 +112,7 @@ This is intentionally **simple**: rule-based tiers, no dictionary, no LLM judge.
 | Better per-sample rules (pronounceability, tiers, plausibility threshold) | **`mgpt/evaluation.py`** |
 | Different **objective** / weights for ranking runs | **`mgpt/quality.py`** — `compute_overall_quality_score`, `SWEEP_RANKING_METRIC` |
 | Baseline reference for sweeps | JSON `baseline` in sweep config, **`DEFAULT_REFERENCE_BASELINE`**, or `"baseline_report"` path |
-| Report file format | **`run_report/builder.py`**, **`run_report/parse.py`** |
+| Report file format | **`run_report/builder.py`**, **`run_report/parse.py`**, **`run_report/timing.py`** |
 | HTML tier bars | **`experiments/report_generator.py`** |
 
 After changing evaluation, re-run training. Add tests in **`tests/test_evaluation.py`** and **`tests/test_quality.py`**.
@@ -145,13 +145,13 @@ flowchart TB
 
 | Step | Module | What happens |
 |------|--------|----------------|
-| 1 | `microgpt_updated.py` | Train, then `generate()` → 20 samples |
+| 1 | `microgpt_updated.py` / `mgpt/experiment.py` | CLI → `run_experiment()` → train, generate → 20 samples |
 | 2 | `mgpt/evaluation.py` | Tier/heuristic scoring from samples + corpus |
 | 3 | `mgpt/quality.py` | Overall score formula, baseline compare, sweep ranking keys |
-| 4 | `run_report/builder.py` | Embeds metrics in `output_*.txt`; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`** |
-| 5 | `experiments/sweep.py` | Grid search ranked by `SWEEP_RANKING_METRIC` vs JSON baseline |
-| 6 | `experiments/report_generator.py` | HTML table + tier bars |
-| 7 | `compare_run_reports.py` | Diff config, loss, samples (not quality blocks for exit code) |
+| 4 | `run_report/builder.py` | Embeds metrics in `output_*.txt`; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**; optional **`--- Run timing ---`** |
+| 5 | `experiments/sweep.py` | Grid search ranked by `SWEEP_RANKING_METRIC` vs JSON baseline; **`sweep_summary.csv`** + **`sweep_timing.txt`** |
+| 6 | `experiments/report_generator.py` | HTML table + tier bars + timing columns |
+| 7 | `compare_run_reports.py` | Diff config, loss, samples; display timing (not quality blocks for exit code) |
 
 ---
 
@@ -164,9 +164,11 @@ Full CLI and workflow map: **`README.md`** → *How to use microgpt_updated.py* 
 python microgpt_updated.py
 python microgpt_updated.py --help
 
-# Tests
-python -m pytest tests/test_evaluation.py tests/test_text_loss_plot.py -q
+# Tests (full suite recommended)
 python -m pytest tests/ -q
+
+# Grid sweep (smoke test)
+python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
 
 # HTML: all outputs/output_*.txt → outputs/comparison_report.html
 python experiments/report_generator.py
@@ -174,7 +176,7 @@ python experiments/report_generator.py
 # HTML: explicit inputs
 python experiments/report_generator.py path/to/run_a.txt path/to/run_b.txt -o /tmp/cmp.html
 
-# Diff two reports (config, loss, samples; optional loss ASCII)
+# Diff two reports (config, loss, samples; timing display when present; optional loss ASCII)
 python compare_run_reports.py path/to/A.txt path/to/B.txt
 python compare_run_reports.py path/to/A.txt path/to/B.txt --loss-bins 96 --loss-height 14
 
@@ -210,15 +212,18 @@ python microgpt_updated.py --num-steps 500 --temperature 0.7 \
 |-------|---------|
 | **1 — `mgpt/evaluation.py`** | Character similarity, length stats, pronounceability, plausibility, three-tier semantic summary. Max consonant run **4**. |
 | **1b — `mgpt/quality.py`** | Overall score formula, baseline compare, sweep ranking metric (`SWEEP_RANKING_METRIC`). |
-| **2 — `run_report`** | Quality blocks in reports; `ParsedRunReport` extended; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**. |
-| **3 — `microgpt_updated.py`** | Console SAMPLE QUALITY block + `save_run_report()`. |
-| **4 — `experiments/report_generator.py`** | HTML comparison with tier bars. |
-| **5 — Tests** | `test_evaluation`, `test_text_loss_plot`, `test_report_generator`, `test_paths`. |
+| **2 — `run_report`** | Quality blocks in reports; `ParsedRunReport` extended; config order **`N_EMBD` → `N_HEAD` → `HEAD_DIM`**; **`--- Run timing ---`** block. |
+| **3 — `microgpt_updated.py` + `mgpt/experiment.py`** | CLI → `run_experiment()`; console quality block + saved report with timing. |
+| **4 — `experiments/report_generator.py`** | HTML comparison with tier bars and timing columns. |
+| **5 — `experiments/sweep.py` + `mgpt/experiment.py`** | Grid search API, ranked CSV, per-run and sweep-level timing artifacts. |
+| **6 — `run_report/timing.py`** | UTC + local ISO, duration, live elapsed/ETA, sweep timing file; compare/HTML integration. |
+| **7 — Tests** | `test_evaluation`, `test_quality`, `test_experiment_config`, `test_sweep_grid`, `test_timing`, `test_text_loss_plot`, `test_report_generator`, `test_paths`. |
 
 ---
 
 ## Notes for experimenters
 
-- **Checked-in examples:** **`example-experiments/`** — H4 vs H1 @ 1000 steps (reports, CLI diff, HTML). See README *Example artifacts (preview)*.
+- **Checked-in examples:** **`example-experiments/`** — H4 vs H1 @ 1000 steps (reports, CLI diff, HTML). Saved **before** **`--- Run timing ---`**; regenerate locally or compare with filename hints. See README *Example artifacts (preview)*.
 - **Compare / HTML** list `HEAD_DIM` after `N_EMBD` and `N_HEAD` and label it as calculated (`N_EMBD // N_HEAD`).
+- **Run timing:** authoritative timestamps live in **`--- Run timing ---`** (UTC + local); filename `_YYYYMMDD_HHMMSS` is for uniqueness. See **[experiment-workflow.md → Run timing](./experiment-workflow.md#run-timing-and-progress)**.
 - **Hypothesis testing (e.g. `N_HEAD` × `NUM_STEPS`):** compare `OVERALL_QUALITY_SCORE`, tier ratios, and sample lines across `outputs/output_*.txt` or the HTML summary—not training loss alone.
