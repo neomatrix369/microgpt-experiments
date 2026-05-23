@@ -12,7 +12,7 @@ Get microgpt running in a few minutes. **No pip install** — Python 3 and the s
 python --version   # Python 3.x required
 ```
 
-Optional tests later: `pip install pytest` (not required to train or generate).
+Optional tests later: `pip install -r requirements.txt` then `python -m pytest` (prints a coverage summary at the end; not required to train or generate).
 
 ---
 

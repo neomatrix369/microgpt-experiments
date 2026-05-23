@@ -176,8 +176,9 @@ Full CLI and workflow map: **`README.md`** → *How to use microgpt_updated.py* 
 python microgpt_updated.py
 python microgpt_updated.py --help
 
-# Tests (full suite recommended)
-python -m pytest tests/ -q
+# Tests (full suite recommended; prints coverage summary at end)
+pip install -r requirements.txt
+python -m pytest
 
 # Grid sweep (smoke test)
 python experiments/sweep.py --config experiments/configs/0_sweep-smoke-test.json
