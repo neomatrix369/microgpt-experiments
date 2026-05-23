@@ -17,11 +17,22 @@ Design lineage: [microGPT / makemore](https://github.com/karpathy/makemore) and 
 | **Learn the ideas** before opening code | **[`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md)** — tokens, loss, temperature, attention, sample quality, with small examples |
 | **Understand autograd** | **[`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md)** — `Value`, computation graph, `backward()`, diagrams and hand-traced examples |
 | **Run something** | [Quick start](#quick-start) below, then skim a checked-in report in [`example-experiments/`](./example-experiments/) |
-| **Change settings or compare runs** | [Configuration](#configuration), [Run reports](#run-reports) |
+| **Run and compare experiments** | **[`docs/experiment-workflow.md`](./docs/experiment-workflow.md)** — train → `outputs/` → CLI diff or HTML (step-by-step recipe) |
+| **Change settings** | [Configuration](#configuration) and `python microgpt_updated.py --help` |
 | **Understand generated-name scoring** | [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) |
 | **Edit code or add features** | [`CLAUDE.md`](./CLAUDE.md) (maintainer / assistant conventions) |
 
-Suggested path: **learn guide → quick start → one example report → `microgpt.py` or `microgpt_updated.py`**.
+**Compare tools (quick pick):**
+
+| Goal | Tool |
+|------|------|
+| Diff **two** runs in the terminal | `compare_run_reports.py` |
+| Table of **two or more** runs in a browser | `experiments/report_generator.py` |
+
+Suggested paths:
+
+- **Learn:** learn guide → autograd deep dive (optional) → quick start → example report → code  
+- **Experiment:** [experiment workflow](./docs/experiment-workflow.md) → run sweep commands → compare or HTML
 
 ---
 
@@ -109,7 +120,7 @@ python microgpt_updated.py --n-head 1 --num-steps 50
 python microgpt_updated.py --n-head 1 --num-steps 2000
 ```
 
-Each run writes a new `outputs/output_*.txt` whose stem encodes the effective config (plus a local timestamp). Compare reports with `compare_run_reports.py` or `experiments/report_generator.py` (see [Run reports](#run-reports)). For **checked-in examples** you can browse without training first, see [Example artifacts (preview)](#example-artifacts-preview).
+Each run writes a new `outputs/output_*.txt` whose stem encodes the effective config (plus a local timestamp). Compare reports with `compare_run_reports.py` or `experiments/report_generator.py` — see **[`docs/experiment-workflow.md`](./docs/experiment-workflow.md)** for a step-by-step recipe. For **checked-in examples** you can browse without training first, see [Example artifacts (preview)](#example-artifacts-preview).
 
 **Tests** (optional; requires `pytest` installed in your environment):
 
@@ -159,7 +170,8 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 | **`README.md`** | This overview (architecture, config, run reports). |
 | **`docs/learn-before-you-code.md`** | **Start here for concepts** — plain-language primer with examples before reading code. |
 | **`docs/autograd-deep-dive.md`** | **Autograd learning guide** — `Value`, graph, `backward()`, worked examples, diagrams; read before `mgpt/value.py`. |
-| **`docs/M2-semantic-quality.md`** | How generated samples are scored (tiers, metrics, commands). |
+| **`docs/experiment-workflow.md`** | **Experiment recipe** — train runs, save reports, compare CLI vs HTML; links to `example-experiments/`. |
+| **`docs/M2-semantic-quality.md`** | **Sample quality guide** — how generated names are scored (tiers, metrics, commands). |
 | **`CLAUDE.md`** | Maintainer / assistant context: conventions, internals, which file to edit. |
 | **`AGENTS.md`** | Short pointer to `README.md` / `CLAUDE.md` for agent harnesses. |
 | **`example-experiments/`** | Checked-in **sample run reports**, a **`compare_run_reports.py`** transcript, and an **HTML comparison** for the **4-head vs 1-head @ 1000 steps** pair — see [Example artifacts (preview)](#example-artifacts-preview). Your own runs still land in gitignored **`outputs/`**. |
@@ -479,7 +491,8 @@ For assistant-oriented conventions and file-choice guidance, see **[`CLAUDE.md`]
 
 - [`docs/learn-before-you-code.md`](./docs/learn-before-you-code.md) — concepts and examples before diving into code
 - [`docs/autograd-deep-dive.md`](./docs/autograd-deep-dive.md) — autograd: `Value`, graph, backward, worked examples
-- [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) — how generated names are scored
+- [`docs/experiment-workflow.md`](./docs/experiment-workflow.md) — train, compare runs, HTML reports
+- [`docs/M2-semantic-quality.md`](./docs/M2-semantic-quality.md) — sample quality tiers and metrics
 - [`CLAUDE.md`](./CLAUDE.md) — file layout and conventions for contributors
 
 **External**

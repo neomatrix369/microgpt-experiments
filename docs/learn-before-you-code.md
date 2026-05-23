@@ -3,7 +3,9 @@
 This guide is for **reading first**, before you open `microgpt.py` or `microgpt_updated.py`. It explains the ideas in everyday language, with small examples you can picture in your head.
 
 **Technical reference** (commands, file layout, config tables) stays in [`README.md`](../README.md).  
-**Sample-quality details** (how tiers are scored) are in [`M2-semantic-quality.md`](./M2-semantic-quality.md).
+**Run and compare experiments** (train → reports → diff/HTML): [`experiment-workflow.md`](./experiment-workflow.md).  
+**Autograd** (gradients, `Value`, `backward()`): [`autograd-deep-dive.md`](./autograd-deep-dive.md).  
+**Sample-quality details** (how tiers are scored): [`M2-semantic-quality.md`](./M2-semantic-quality.md).
 
 ---
 
@@ -195,7 +197,7 @@ Tiers can overlap in edge cases; treat **overall score** and **tier ratios** as 
    - **`microgpt.py`** — one continuous story (~300 lines); best “read like a blog post.”
    - **`microgpt_updated.py`** — same ideas, split into `train()` / `generate()`; use for CLI and tests.
 6. **Autograd** — [`autograd-deep-dive.md`](./autograd-deep-dive.md) (diagrams + hand traces), then `mgpt/value.py` → `ops.py` → `model.py`.
-7. **Compare runs** — `compare_run_reports.py` or open `example-experiments/comparison_report.html`.
+7. **Experiments** — [`experiment-workflow.md`](./experiment-workflow.md) (train → compare), or open `example-experiments/comparison_report.html`.
 8. **[Karpathy’s microGPT post](https://karpathy.github.io/2026/02/12/microgpt/)** — deeper theory when you want the original narrative.
 
 ---

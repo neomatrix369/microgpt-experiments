@@ -384,5 +384,6 @@ The project follows the Karpathy microGPT style: the source **is** the lesson. T
 ## Further reading
 
 - [`learn-before-you-code.md`](./learn-before-you-code.md) — tokens, loss, temperature, sample quality
+- [`experiment-workflow.md`](./experiment-workflow.md) — train runs and compare reports
 - [`M2-semantic-quality.md`](./M2-semantic-quality.md) — how generated names are scored (separate from autograd)
 - [Karpathy microGPT blog](https://karpathy.github.io/2026/02/12/microgpt/) — theory and motivation

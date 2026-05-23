@@ -1,5 +1,7 @@
 # Sample quality and semantic tiers
 
+**Sample quality guide** — heuristic scoring of generated names after training.
+
 After training, **`microgpt_updated.py`** generates 20 strings and scores them. This page explains **what those scores mean** and how the code fits together. For the big-picture concepts (loss, temperature, attention), start with **[`learn-before-you-code.md`](./learn-before-you-code.md)**.
 
 ---
@@ -128,7 +130,7 @@ flowchart TB
 
 ## Commands
 
-Full CLI and workflow map: **`README.md`** → *How to use microgpt_updated.py* and *Run experiments examples*.
+Full CLI and workflow map: **`README.md`** → *How to use microgpt_updated.py* and *Run experiments examples*. Step-by-step train/compare recipe: **[`experiment-workflow.md`](./experiment-workflow.md)**.
 
 ```bash
 # Train, print samples + quality block, write output_*.txt
