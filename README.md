@@ -203,6 +203,8 @@ Replace `input.txt` with your own line-oriented corpus to change what the model 
 
 ## Architecture (high level)
 
+> **Mermaid:** GitHub renders in-browser. **VS Code:** `bierner.markdown-mermaid` (diagram preview) + `bpruitt-goddard.mermaid-markdown-syntax-highlighting` (syntax highlight)—then Markdown preview (`Cmd+Shift+V` / `Ctrl+Shift+V`). **JetBrains** (PyCharm, IntelliJ, …): built into the Markdown plugin—enable Mermaid under Settings → Languages & Frameworks → Markdown.
+
 **Story in one breath:** text lines → character tokens → embeddings + positions → transformer blocks (normalize → attend → MLP) → logits per next character → cross-entropy loss → backward → Adam. After training, sample from the same stack starting at BOS.
 
 ```mermaid
@@ -237,10 +239,8 @@ flowchart TB
 **After training (refactored entry only):** generated strings are scored for corpus similarity and coarse “makes sense” tiers; metrics are printed and embedded in the saved report.
 
 ```mermaid
-flowchart LR
-  subgraph gen [Generation]
-    S[20 samples]
-  end
+flowchart TB
+  S[20 samples]
   subgraph metrics [mgpt.evaluation]
     C[CHAR_DIST_SIMILARITY + length stats]
     T[Three-tier semantic counts / ratios]

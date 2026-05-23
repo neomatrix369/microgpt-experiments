@@ -24,8 +24,10 @@ Training needs an answer to: *"If I nudge this weight a tiny bit, does loss go u
 
 Autograd computes the gradient automatically from the forward computation.
 
+> **Mermaid:** GitHub renders in-browser. **VS Code:** `bierner.markdown-mermaid` (diagram preview) + `bpruitt-goddard.mermaid-markdown-syntax-highlighting` (syntax highlight)—then Markdown preview (`Cmd+Shift+V` / `Ctrl+Shift+V`). **JetBrains** (PyCharm, IntelliJ, …): built into the Markdown plugin—enable Mermaid under Settings → Languages & Frameworks → Markdown.
+
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph forward [Forward]
     Doc[One document]
     Graph[Build Value graph]
